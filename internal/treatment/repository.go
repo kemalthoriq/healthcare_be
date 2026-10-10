@@ -14,6 +14,7 @@ import (
 var (
 	errNotFound  = errors.New("treatment not found")
 	errSlugTaken = errors.New("treatment slug taken")
+	errInUse     = errors.New("treatment referenced by bookings")
 )
 
 type Repository struct {
@@ -82,7 +83,12 @@ func (r *Repository) Update(ctx context.Context, id int64, in Input) (Treatment,
 
 func (r *Repository) Delete(ctx context.Context, id int64) error {
 	n, err := r.q.DeleteTreatment(ctx, id)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		return errInUse
+	}
 	if err != nil {
+
 		return err
 	}
 	if n == 0 {

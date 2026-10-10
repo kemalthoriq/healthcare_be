@@ -12,7 +12,10 @@ import (
 
 const slotStep = 30 * time.Minute
 
-var ErrTherapistNotAssigned = apperr.Unprocessable("THERAPIST_NOT_ASSIGNED", "Terapis ini tidak menangani treatment yang dipilih.")
+var (
+	ErrTherapistNotAssigned = apperr.Unprocessable("THERAPIST_NOT_ASSIGNED", "Terapis ini tidak menangani treatment yang dipilih.")
+	ErrSlotUnavailable      = apperr.Unprocessable("SLOT_UNAVAILABLE", "Jam yang dipilih tidak tersedia. Silakan pilih jam lain.")
+)
 
 type treatmentFinder interface {
 	GetActiveBySlug(ctx context.Context, slug string) (treatment.Treatment, error)
@@ -29,26 +32,33 @@ type settingsGetter interface {
 	Get(ctx context.Context) (setting.Settings, error)
 }
 
+type bookingRanges interface {
+	ListActiveRanges(ctx context.Context, therapistID int64, from, to time.Time) ([]Interval, error)
+}
+
 type Availability struct {
 	treatments treatmentFinder
 	therapists therapistFinder
 	settings   settingsGetter
+	bookings   bookingRanges
 	loc        *time.Location
 	now        func() time.Time
 }
 
-func NewAvailability(treatments treatmentFinder, therapists therapistFinder, settings settingsGetter, loc *time.Location) *Availability {
-	return &Availability{treatments: treatments, therapists: therapists, settings: settings, loc: loc, now: time.Now}
+func NewAvailability(treatments treatmentFinder, therapists therapistFinder, settings settingsGetter, bookings bookingRanges, loc *time.Location) *Availability {
+	return &Availability{treatments: treatments, therapists: therapists, settings: settings, bookings: bookings, loc: loc, now: time.Now}
 }
 
 type plan struct {
-	duration time.Duration
-	buffer   time.Duration
-	shifts   []therapist.Shift
-	busy     []Interval
-	earliest time.Time
-	firstDay time.Time
-	lastDay  time.Time
+	treatment treatment.Treatment
+	therapist therapist.Therapist
+	duration  time.Duration
+	buffer    time.Duration
+	shifts    []therapist.Shift
+	busy      []Interval
+	earliest  time.Time
+	firstDay  time.Time
+	lastDay   time.Time
 }
 
 func (a *Availability) Slots(ctx context.Context, treatmentSlug, therapistSlug string, day time.Time) ([]time.Time, error) {
@@ -72,6 +82,20 @@ func (a *Availability) Dates(ctx context.Context, treatmentSlug, therapistSlug s
 		}
 	}
 	return dates, nil
+}
+
+func (a *Availability) check(ctx context.Context, treatmentSlug, therapistSlug string, start time.Time) (plan, error) {
+	p, err := a.load(ctx, treatmentSlug, therapistSlug)
+	if err != nil {
+		return plan{}, err
+	}
+
+	for _, slot := range p.slotsOn(StartOfDay(start.In(a.loc))) {
+		if slot.Equal(start) {
+			return p, nil
+		}
+	}
+	return plan{}, ErrSlotUnavailable
 }
 
 func (a *Availability) load(ctx context.Context, treatmentSlug, therapistSlug string) (plan, error) {
@@ -108,22 +132,28 @@ func (a *Availability) load(ctx context.Context, treatmentSlug, therapistSlug st
 		return plan{}, err
 	}
 
-	busy := make([]Interval, 0, len(timeOffs))
+	now := a.now().In(a.loc)
+	today := StartOfDay(now)
+	lastDay := today.AddDate(0, 0, int(st.MaxBookingDaysAhead))
+
+	busy, err := a.bookings.ListActiveRanges(ctx, th.ID, today, lastDay.AddDate(0, 0, 1))
+	if err != nil {
+		return plan{}, err
+	}
 	for _, off := range timeOffs {
 		busy = append(busy, Interval{Start: off.StartAt, End: off.EndAt})
 	}
 
-	now := a.now().In(a.loc)
-	today := StartOfDay(now)
-
 	return plan{
-		duration: time.Duration(tr.DurationMinutes) * time.Minute,
-		buffer:   time.Duration(st.BufferMinutes) * time.Minute,
-		shifts:   shifts,
-		busy:     busy,
-		earliest: now.Add(time.Duration(st.MinBookingLeadMinutes) * time.Minute),
-		firstDay: today,
-		lastDay:  today.AddDate(0, 0, int(st.MaxBookingDaysAhead)),
+		treatment: tr,
+		therapist: th,
+		duration:  time.Duration(tr.DurationMinutes) * time.Minute,
+		buffer:    time.Duration(st.BufferMinutes) * time.Minute,
+		shifts:    shifts,
+		busy:      busy,
+		earliest:  now.Add(time.Duration(st.MinBookingLeadMinutes) * time.Minute),
+		firstDay:  today,
+		lastDay:   lastDay,
 	}, nil
 }
 

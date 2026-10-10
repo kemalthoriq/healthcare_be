@@ -10,6 +10,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Booking struct {
+	ID           int64
+	Code         string
+	PatientID    int64
+	TreatmentID  int64
+	TherapistID  int64
+	PatientName  string
+	StartAt      time.Time
+	EndAt        time.Time
+	BlockedUntil time.Time
+	Status       string
+	Price        int64
+	PatientNote  string
+	CancelReason string
+	ConfirmedAt  *time.Time
+	CancelledAt  *time.Time
+	CompletedAt  *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
 type ClinicSetting struct {
 	ID                    int16
 	BufferMinutes         int32
@@ -17,6 +38,16 @@ type ClinicSetting struct {
 	MaxBookingDaysAhead   int32
 	CancelDeadlineHours   int32
 	UpdatedAt             time.Time
+}
+
+type Patient struct {
+	ID        int64
+	Name      string
+	Phone     string
+	Email     string
+	ConsentAt time.Time
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type Session struct {

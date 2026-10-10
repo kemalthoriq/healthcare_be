@@ -16,6 +16,7 @@ var (
 	errNotFound         = errors.New("therapist not found")
 	errSlugTaken        = errors.New("therapist slug taken")
 	errUnknownTherapist = errors.New("unknown therapist id")
+	errInUse            = errors.New("therapist referenced by bookings")
 )
 
 type Repository struct {
@@ -82,6 +83,10 @@ func (r *Repository) Update(ctx context.Context, id int64, in Input) (Therapist,
 
 func (r *Repository) Delete(ctx context.Context, id int64) error {
 	n, err := r.q.DeleteTherapist(ctx, id)
+	if pgErrorCode(err) == "23503" {
+		return errInUse
+	}
+
 	if err != nil {
 		return err
 	}
