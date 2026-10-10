@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/kemalthoriq/healthcare_be/db/migrations"
+	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/config"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/database"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/logger"
@@ -45,6 +46,15 @@ func run() error {
 
 	if err := database.Migrate(ctx, pool, migrations.FS, log); err != nil {
 		return fmt.Errorf("migrate database: %w", err)
+	}
+
+	authService := auth.NewService(auth.NewRepository(pool), log)
+	if err := authService.EnsureAdmin(ctx, auth.AdminSeed{
+		Name:     cfg.SeedAdminName,
+		Email:    cfg.SeedAdminEmail,
+		Password: cfg.SeedAdminPassword,
+	}); err != nil {
+		return fmt.Errorf("ensure admin: %w", err)
 	}
 
 	srv := &http.Server{

@@ -14,6 +14,9 @@ func clearEnv(t *testing.T) {
 	t.Setenv("SHUTDOWN_TIMEOUT", "")
 	t.Setenv("DATABASE_URL", "")
 	t.Setenv("DB_MAX_CONNS", "")
+	t.Setenv("SEED_ADMIN_NAME", "")
+	t.Setenv("SEED_ADMIN_EMAIL", "")
+	t.Setenv("SEED_ADMIN_PASSWORD", "")
 }
 
 func setRequiredEnv(t *testing.T) {
@@ -87,6 +90,8 @@ func TestLoad_RejectsInvalidValues(t *testing.T) {
 		{"max conns is not a number", "DB_MAX_CONNS", "many"},
 		{"max conns is zero", "DB_MAX_CONNS", "0"},
 		{"max conns is too large", "DB_MAX_CONNS", "51"},
+		{"seed email without password", "SEED_ADMIN_EMAIL", "admin@lumiere.test"},
+		{"seed password without email", "SEED_ADMIN_PASSWORD", "rahasia-sekali-123"},
 	}
 
 	for _, tt := range tests {
@@ -96,6 +101,35 @@ func TestLoad_RejectsInvalidValues(t *testing.T) {
 
 			if _, err := Load(); err == nil {
 				t.Fatalf("expected error for %s=%q, got nil", tt.key, tt.value)
+			}
+		})
+	}
+}
+
+func TestLoad_SeedAdmin(t *testing.T) {
+	tests := []struct {
+		name     string
+		email    string
+		password string
+		wantErr  bool
+	}{
+		{"valid seed", "admin@lumiere.test", "rahasia-sekali-123", false},
+		{"invalid email", "bukan-email", "rahasia-sekali-123", true},
+		{"short password", "admin@lumiere.test", "pendek", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setRequiredEnv(t)
+			t.Setenv("SEED_ADMIN_EMAIL", tt.email)
+			t.Setenv("SEED_ADMIN_PASSWORD", tt.password)
+
+			cfg, err := Load()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && cfg.SeedAdminName != "Admin" {
+				t.Errorf("SeedAdminName = %q, want default Admin", cfg.SeedAdminName)
 			}
 		})
 	}

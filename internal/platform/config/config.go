@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"net/mail"
 	"os"
 	"strconv"
 	"time"
@@ -13,19 +14,25 @@ const (
 )
 
 type Config struct {
-	AppEnv          string
-	Port            int
-	ShutdownTimeout time.Duration
-	DatabaseURL     string
-	DBMaxConns      int32
+	AppEnv            string
+	Port              int
+	ShutdownTimeout   time.Duration
+	DatabaseURL       string
+	DBMaxConns        int32
+	SeedAdminName     string
+	SeedAdminEmail    string
+	SeedAdminPassword string
 }
 
 func Load() (Config, error) {
 	var errs []error
 
 	cfg := Config{
-		AppEnv:      getEnv("APP_ENV", EnvDevelopment),
-		DatabaseURL: getEnv("DATABASE_URL", ""),
+		AppEnv:            getEnv("APP_ENV", EnvDevelopment),
+		DatabaseURL:       getEnv("DATABASE_URL", ""),
+		SeedAdminName:     getEnv("SEED_ADMIN_NAME", "Admin"),
+		SeedAdminEmail:    getEnv("SEED_ADMIN_EMAIL", ""),
+		SeedAdminPassword: getEnv("SEED_ADMIN_PASSWORD", ""),
 	}
 	if cfg.AppEnv != EnvDevelopment && cfg.AppEnv != EnvProduction {
 		errs = append(errs, errors.New("APP_ENV must be either development or production"))
@@ -52,6 +59,15 @@ func Load() (Config, error) {
 		errs = append(errs, errors.New("DB_MAX_CONNS must be a number between 1 and 50"))
 	}
 	cfg.DBMaxConns = int32(maxConns)
+
+	if cfg.SeedAdminEmail != "" || cfg.SeedAdminPassword != "" {
+		if _, err := mail.ParseAddress(cfg.SeedAdminEmail); err != nil {
+			errs = append(errs, errors.New("SEED_ADMIN_EMAIL must be a valid email address"))
+		}
+		if len(cfg.SeedAdminPassword) < 12 {
+			errs = append(errs, errors.New("SEED_ADMIN_PASSWORD must be at least 12 characters"))
+		}
+	}
 
 	return cfg, errors.Join(errs...)
 }
