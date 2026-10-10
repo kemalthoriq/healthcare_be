@@ -33,7 +33,7 @@ func newTestRouter() http.Handler {
 		treatment:      treatment.NewHandler(nil),
 		therapist:      therapist.NewHandler(nil),
 		setting:        setting.NewHandler(nil),
-		booking:        booking.NewHandler(nil, time.UTC),
+		booking:        booking.NewHandler(nil, nil, time.UTC),
 	})
 }
 
@@ -114,6 +114,8 @@ func TestRouter_ProtectedRoutes(t *testing.T) {
 		{"admin settings requires session", http.MethodPut, "/api/v1/admin/settings", testOrigin, http.StatusUnauthorized},
 		{"slots validates query", http.MethodGet, "/api/v1/availability/slots", "", http.StatusUnprocessableEntity},
 		{"dates validates query", http.MethodGet, "/api/v1/availability/dates?treatment=a&therapist=b&month=oktober", "", http.StatusUnprocessableEntity},
+		{"create booking rejects foreign origin", http.MethodPost, "/api/v1/bookings", "https://evil.example", http.StatusForbidden},
+		{"create booking requires json", http.MethodPost, "/api/v1/bookings", testOrigin, http.StatusUnsupportedMediaType},
 	}
 
 	for _, tt := range tests {

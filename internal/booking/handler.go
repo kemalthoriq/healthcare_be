@@ -10,11 +10,75 @@ import (
 
 type Handler struct {
 	availability *Availability
+	service      *Service
 	loc          *time.Location
 }
 
-func NewHandler(availability *Availability, loc *time.Location) *Handler {
-	return &Handler{availability: availability, loc: loc}
+func NewHandler(availability *Availability, service *Service, loc *time.Location) *Handler {
+	return &Handler{availability: availability, service: service, loc: loc}
+}
+
+type createRequest struct {
+	TreatmentSlug string    `json:"treatment_slug"`
+	TherapistSlug string    `json:"therapist_slug"`
+	StartAt       time.Time `json:"start_at"`
+	Name          string    `json:"name"`
+	Phone         string    `json:"phone"`
+	Email         string    `json:"email"`
+	Note          string    `json:"note"`
+	Consent       bool      `json:"consent"`
+}
+
+type namedRef struct {
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+}
+
+type bookingResponse struct {
+	Code        string    `json:"code"`
+	Status      string    `json:"status"`
+	PatientName string    `json:"patient_name"`
+	Treatment   namedRef  `json:"treatment"`
+	Therapist   namedRef  `json:"therapist"`
+	StartAt     time.Time `json:"start_at"`
+	EndAt       time.Time `json:"end_at"`
+	Price       int64     `json:"price"`
+	Note        string    `json:"note"`
+}
+
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+	var req createRequest
+	if err := httpx.DecodeJSON(w, r, &req); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+
+	c, err := h.service.Create(r.Context(), CreateInput{
+		TreatmentSlug: req.TreatmentSlug,
+		TherapistSlug: req.TherapistSlug,
+		StartAt:       req.StartAt,
+		Name:          req.Name,
+		Phone:         req.Phone,
+		Email:         req.Email,
+		Note:          req.Note,
+		Consent:       req.Consent,
+	})
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+
+	httpx.JSON(w, r, http.StatusCreated, bookingResponse{
+		Code:        c.Booking.Code,
+		Status:      c.Booking.Status,
+		PatientName: c.Booking.PatientName,
+		Treatment:   namedRef{Slug: c.Treatment.Slug, Name: c.Treatment.Name},
+		Therapist:   namedRef{Slug: c.Therapist.Slug, Name: c.Therapist.Name},
+		StartAt:     c.Booking.StartAt.In(h.loc),
+		EndAt:       c.Booking.EndAt.In(h.loc),
+		Price:       c.Booking.Price,
+		Note:        c.Booking.PatientNote,
+	})
 }
 
 type slotResponse struct {

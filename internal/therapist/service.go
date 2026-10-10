@@ -23,7 +23,10 @@ const (
 	maxSlugAttempts   = 50
 )
 
-var ErrNotFound = apperr.NotFound("Terapis tidak ditemukan.")
+var (
+	ErrNotFound    = apperr.NotFound("Terapis tidak ditemukan.")
+	ErrHasBookings = apperr.Conflict("HAS_BOOKINGS", "Terapis sudah pernah dibooking sehingga tidak bisa dihapus. Nonaktifkan saja.")
+)
 
 type store interface {
 	ListActive(ctx context.Context) ([]Therapist, error)
@@ -109,7 +112,11 @@ func (s *Service) Update(ctx context.Context, id int64, in Input) (Therapist, er
 }
 
 func (s *Service) Delete(ctx context.Context, id int64) error {
-	return mapNotFound(s.store.Delete(ctx, id))
+	err := s.store.Delete(ctx, id)
+	if errors.Is(err, errInUse) {
+		return ErrHasBookings
+	}
+	return mapNotFound(err)
 }
 
 func (s *Service) ListActiveForTreatment(ctx context.Context, treatmentSlug string) ([]Therapist, error) {

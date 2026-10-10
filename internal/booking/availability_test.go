@@ -18,7 +18,7 @@ func (fakeTreatments) GetActiveBySlug(ctx context.Context, slug string) (treatme
 	if slug != "facial-glow" {
 		return treatment.Treatment{}, treatment.ErrNotFound
 	}
-	return treatment.Treatment{ID: 1, Slug: slug, DurationMinutes: 60, IsActive: true}, nil
+	return treatment.Treatment{ID: 1, Slug: slug, Price: 350000, DurationMinutes: 60, IsActive: true}, nil
 }
 
 type fakeTherapists struct {
@@ -53,8 +53,16 @@ func (fakeSettings) Get(ctx context.Context) (setting.Settings, error) {
 	return setting.Settings{BufferMinutes: 15, MinBookingLeadMinutes: 120, MaxBookingDaysAhead: 30}, nil
 }
 
-func newTestAvailability(therapists fakeTherapists) *Availability {
-	a := NewAvailability(fakeTreatments{}, therapists, fakeSettings{}, wib)
+type fakeBookings struct {
+	busy []Interval
+}
+
+func (f fakeBookings) ListActiveRanges(ctx context.Context, therapistID int64, from, to time.Time) ([]Interval, error) {
+	return f.busy, nil
+}
+
+func newTestAvailability(therapists fakeTherapists, busy []Interval) *Availability {
+	a := NewAvailability(fakeTreatments{}, therapists, fakeSettings{}, fakeBookings{busy: busy}, wib)
 	a.now = func() time.Time { return time.Date(2026, 10, 20, 9, 0, 0, 0, wib) }
 	return a
 }
@@ -79,7 +87,7 @@ func TestSlots(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			slots, err := newTestAvailability(fakeTherapists{}).Slots(context.Background(), "facial-glow", "dr-sari", day(tt.date))
+			slots, err := newTestAvailability(fakeTherapists{}, nil).Slots(context.Background(), "facial-glow", "dr-sari", day(tt.date))
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -96,7 +104,7 @@ func TestSlots_TimeOffBlocksSlots(t *testing.T) {
 		EndAt:   time.Date(2026, 10, 28, 0, 0, 0, 0, wib),
 	}
 
-	slots, err := newTestAvailability(fakeTherapists{timeOffs: []therapist.TimeOff{off}}).
+	slots, err := newTestAvailability(fakeTherapists{timeOffs: []therapist.TimeOff{off}}, nil).
 		Slots(context.Background(), "facial-glow", "dr-sari", day("2026-10-27"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -106,8 +114,24 @@ func TestSlots_TimeOffBlocksSlots(t *testing.T) {
 	}
 }
 
+func TestSlots_ExistingBookingBlocksSlots(t *testing.T) {
+	existing := Interval{
+		Start: time.Date(2026, 10, 27, 11, 0, 0, 0, wib),
+		End:   time.Date(2026, 10, 27, 12, 15, 0, 0, wib),
+	}
+
+	slots, err := newTestAvailability(fakeTherapists{}, []Interval{existing}).
+		Slots(context.Background(), "facial-glow", "dr-sari", day("2026-10-27"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := clocks(slots); len(got) != 0 {
+		t.Errorf("got %v, want no slots: every start overlaps 11:00-12:15 once our buffer is included", got)
+	}
+}
+
 func TestSlots_Errors(t *testing.T) {
-	a := newTestAvailability(fakeTherapists{})
+	a := newTestAvailability(fakeTherapists{}, nil)
 	ctx := context.Background()
 
 	if _, err := a.Slots(ctx, "tidak-ada", "dr-sari", day("2026-10-27")); !errors.Is(err, treatment.ErrNotFound) {
@@ -122,7 +146,7 @@ func TestSlots_Errors(t *testing.T) {
 }
 
 func TestDates(t *testing.T) {
-	dates, err := newTestAvailability(fakeTherapists{}).Dates(context.Background(), "facial-glow", "dr-sari", day("2026-10-01"))
+	dates, err := newTestAvailability(fakeTherapists{}, nil).Dates(context.Background(), "facial-glow", "dr-sari", day("2026-10-01"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

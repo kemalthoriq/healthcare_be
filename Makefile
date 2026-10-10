@@ -5,7 +5,7 @@ endif
 
 GOOSE := go run github.com/pressly/goose/v3/cmd/goose@v3.28.0
 
-.PHONY: run build test vet fmt check db-up db-down db-reset migration sqlc
+.PHONY: run build test test-integration vet fmt check db-up db-down db-reset migration sqlc
 
 run:
 	go run ./cmd/api
@@ -15,6 +15,10 @@ build:
 
 test:
 	go test ./...
+
+test-integration: export TEST_DATABASE_URL = postgres://healthcare:healthcare@localhost:5434/healthcare?sslmode=disable
+test-integration:
+	go test ./... -run Integration -count=1 -v
 
 vet:
 	go vet ./...

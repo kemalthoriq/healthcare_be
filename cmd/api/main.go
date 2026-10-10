@@ -70,7 +70,9 @@ func run() error {
 	treatmentService := treatment.NewService(treatment.NewRepository(pool))
 	therapistService := therapist.NewService(therapist.NewRepository(pool), treatmentService)
 	settingService := setting.NewService(setting.NewRepository(pool))
-	availability := booking.NewAvailability(treatmentService, therapistService, settingService, clinicLocation)
+	bookingRepository := booking.NewRepository(pool)
+	availability := booking.NewAvailability(treatmentService, therapistService, settingService, bookingRepository, clinicLocation)
+	bookingService := booking.NewService(availability, bookingRepository)
 
 	router := newRouter(routerDeps{
 		log:            log,
@@ -80,7 +82,7 @@ func run() error {
 		treatment:      treatment.NewHandler(treatmentService),
 		therapist:      therapist.NewHandler(therapistService),
 		setting:        setting.NewHandler(settingService),
-		booking:        booking.NewHandler(availability, clinicLocation),
+		booking:        booking.NewHandler(availability, bookingService, clinicLocation),
 	})
 
 	srv := &http.Server{
