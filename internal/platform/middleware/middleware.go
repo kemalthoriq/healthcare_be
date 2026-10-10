@@ -8,6 +8,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/httpx"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/logger"
 )
@@ -136,4 +137,25 @@ func SecureHeaders(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+var errInvalidOrigin = apperr.New(apperr.KindForbidden, "INVALID_ORIGIN", "Permintaan ditolak.")
+
+func SameOrigin(allowedOrigin string) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.Method {
+			case http.MethodGet, http.MethodHead, http.MethodOptions:
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if r.Header.Get("Origin") != allowedOrigin {
+				httpx.Error(w, r, errInvalidOrigin)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

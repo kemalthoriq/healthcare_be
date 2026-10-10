@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"net/mail"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -22,6 +23,8 @@ type Config struct {
 	SeedAdminName     string
 	SeedAdminEmail    string
 	SeedAdminPassword string
+	FrontendOrigin    string
+	SessionTTL        time.Duration
 }
 
 func Load() (Config, error) {
@@ -33,6 +36,7 @@ func Load() (Config, error) {
 		SeedAdminName:     getEnv("SEED_ADMIN_NAME", "Admin"),
 		SeedAdminEmail:    getEnv("SEED_ADMIN_EMAIL", ""),
 		SeedAdminPassword: getEnv("SEED_ADMIN_PASSWORD", ""),
+		FrontendOrigin:    getEnv("FRONTEND_ORIGIN", "http://localhost:3000"),
 	}
 	if cfg.AppEnv != EnvDevelopment && cfg.AppEnv != EnvProduction {
 		errs = append(errs, errors.New("APP_ENV must be either development or production"))
@@ -69,11 +73,29 @@ func Load() (Config, error) {
 		}
 	}
 
+	if !validOrigin(cfg.FrontendOrigin) {
+		errs = append(errs, errors.New("FRONTEND_ORIGIN must be an origin like https://example.com, without a path"))
+	}
+
+	sessionTTL, err := time.ParseDuration(getEnv("SESSION_TTL", "168h"))
+	if err != nil || sessionTTL <= 0 {
+		errs = append(errs, errors.New("SESSION_TTL must be a positive duration, e.g. 168h"))
+	}
+	cfg.SessionTTL = sessionTTL
+
 	return cfg, errors.Join(errs...)
 }
 
 func (c Config) IsProduction() bool {
 	return c.AppEnv == EnvProduction
+}
+
+func validOrigin(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return false
+	}
+	return u.Path == "" && u.RawQuery == "" && u.Fragment == "" && u.User == nil
 }
 
 func getEnv(key, fallback string) string {

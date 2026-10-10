@@ -17,6 +17,8 @@ func clearEnv(t *testing.T) {
 	t.Setenv("SEED_ADMIN_NAME", "")
 	t.Setenv("SEED_ADMIN_EMAIL", "")
 	t.Setenv("SEED_ADMIN_PASSWORD", "")
+	t.Setenv("FRONTEND_ORIGIN", "")
+	t.Setenv("SESSION_TTL", "")
 }
 
 func setRequiredEnv(t *testing.T) {
@@ -43,6 +45,12 @@ func TestLoad_UsesDefaultsWhenUnset(t *testing.T) {
 	}
 	if cfg.DBMaxConns != 5 {
 		t.Errorf("DBMaxConns = %d, want 5", cfg.DBMaxConns)
+	}
+	if cfg.FrontendOrigin != "http://localhost:3000" {
+		t.Errorf("FrontendOrigin = %q, want http://localhost:3000", cfg.FrontendOrigin)
+	}
+	if cfg.SessionTTL != 168*time.Hour {
+		t.Errorf("SessionTTL = %v, want 168h", cfg.SessionTTL)
 	}
 }
 
@@ -92,6 +100,10 @@ func TestLoad_RejectsInvalidValues(t *testing.T) {
 		{"max conns is too large", "DB_MAX_CONNS", "51"},
 		{"seed email without password", "SEED_ADMIN_EMAIL", "admin@lumiere.test"},
 		{"seed password without email", "SEED_ADMIN_PASSWORD", "rahasia-sekali-123"},
+		{"origin without scheme", "FRONTEND_ORIGIN", "localhost:3000"},
+		{"origin with path", "FRONTEND_ORIGIN", "https://lumiere.vercel.app/admin"},
+		{"session ttl without unit", "SESSION_TTL", "168"},
+		{"session ttl is zero", "SESSION_TTL", "0s"},
 	}
 
 	for _, tt := range tests {

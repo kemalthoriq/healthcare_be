@@ -48,7 +48,7 @@ func run() error {
 		return fmt.Errorf("migrate database: %w", err)
 	}
 
-	authService := auth.NewService(auth.NewRepository(pool), log)
+	authService := auth.NewService(auth.NewRepository(pool), log, cfg.SessionTTL)
 	if err := authService.EnsureAdmin(ctx, auth.AdminSeed{
 		Name:     cfg.SeedAdminName,
 		Email:    cfg.SeedAdminEmail,
@@ -59,7 +59,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           newRouter(log, pool),
+		Handler:           newRouter(log, pool, auth.NewHandler(authService, cfg.IsProduction()), cfg.FrontendOrigin),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      15 * time.Second,
