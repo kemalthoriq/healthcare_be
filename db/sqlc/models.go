@@ -15,6 +15,18 @@ type Session struct {
 	CreatedAt time.Time
 }
 
+type Therapist struct {
+	ID        int64
+	Name      string
+	Slug      string
+	Title     string
+	Bio       string
+	PhotoUrl  string
+	IsActive  bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type Treatment struct {
 	ID              int64
 	Name            string
@@ -26,6 +38,11 @@ type Treatment struct {
 	IsActive        bool
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+}
+
+type TreatmentTherapist struct {
+	TreatmentID int64
+	TherapistID int64
 }
 
 type User struct {
