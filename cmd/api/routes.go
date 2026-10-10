@@ -5,8 +5,10 @@ import (
 	"net/http"
 
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
+	"github.com/kemalthoriq/healthcare_be/internal/booking"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/health"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/middleware"
+	"github.com/kemalthoriq/healthcare_be/internal/setting"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
 )
@@ -18,6 +20,8 @@ type routerDeps struct {
 	auth           *auth.Handler
 	treatment      *treatment.Handler
 	therapist      *therapist.Handler
+	setting        *setting.Handler
+	booking        *booking.Handler
 }
 
 func newRouter(d routerDeps) http.Handler {
@@ -53,6 +57,12 @@ func newRouter(d routerDeps) http.Handler {
 	api.Handle("GET /api/v1/admin/therapists/{id}/time-off", admin(d.therapist.ListTimeOff))
 	api.Handle("POST /api/v1/admin/therapists/{id}/time-off", admin(d.therapist.CreateTimeOff))
 	api.Handle("DELETE /api/v1/admin/therapists/{id}/time-off/{timeOffId}", admin(d.therapist.DeleteTimeOff))
+
+	api.Handle("GET /api/v1/admin/settings", admin(d.setting.Get))
+	api.Handle("PUT /api/v1/admin/settings", admin(d.setting.Update))
+
+	api.HandleFunc("GET /api/v1/availability/slots", d.booking.Slots)
+	api.HandleFunc("GET /api/v1/availability/dates", d.booking.Dates)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)
