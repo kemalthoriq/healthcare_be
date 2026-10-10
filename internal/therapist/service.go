@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
@@ -34,6 +35,11 @@ type store interface {
 	Delete(ctx context.Context, id int64) error
 	ListByTreatment(ctx context.Context, treatmentID int64) ([]Therapist, error)
 	ReplaceTreatmentTherapists(ctx context.Context, treatmentID int64, therapistIDs []int64) error
+	ListSchedules(ctx context.Context, therapistID int64) ([]Shift, error)
+	ReplaceSchedules(ctx context.Context, therapistID int64, shifts []Shift) error
+	ListUpcomingTimeOff(ctx context.Context, therapistID int64) ([]TimeOff, error)
+	CreateTimeOff(ctx context.Context, therapistID int64, in TimeOffInput) (TimeOff, error)
+	DeleteTimeOff(ctx context.Context, therapistID, timeOffID int64) error
 }
 
 type treatmentFinder interface {
@@ -44,10 +50,11 @@ type treatmentFinder interface {
 type Service struct {
 	store      store
 	treatments treatmentFinder
+	now        func() time.Time
 }
 
 func NewService(store store, treatments treatmentFinder) *Service {
-	return &Service{store: store, treatments: treatments}
+	return &Service{store: store, treatments: treatments, now: time.Now}
 }
 
 func (s *Service) ListActive(ctx context.Context) ([]Therapist, error) {

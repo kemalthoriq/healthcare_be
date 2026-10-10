@@ -6,6 +6,8 @@ package sqlc
 
 import (
 	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Session struct {
@@ -25,6 +27,23 @@ type Therapist struct {
 	IsActive  bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type TherapistSchedule struct {
+	ID          int64
+	TherapistID int64
+	DayOfWeek   int16
+	StartTime   pgtype.Time
+	EndTime     pgtype.Time
+}
+
+type TherapistTimeOff struct {
+	ID          int64
+	TherapistID int64
+	StartAt     time.Time
+	EndAt       time.Time
+	Reason      string
+	CreatedAt   time.Time
 }
 
 type Treatment struct {

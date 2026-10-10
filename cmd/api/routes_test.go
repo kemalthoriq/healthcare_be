@@ -104,6 +104,8 @@ func TestRouter_ProtectedRoutes(t *testing.T) {
 		{"admin treatment delete requires session", http.MethodDelete, "/api/v1/admin/treatments/1", testOrigin, http.StatusUnauthorized},
 		{"admin therapist create requires session", http.MethodPost, "/api/v1/admin/therapists", testOrigin, http.StatusUnauthorized},
 		{"admin treatment therapists requires session", http.MethodPut, "/api/v1/admin/treatments/1/therapists", testOrigin, http.StatusUnauthorized},
+		{"admin schedules requires session", http.MethodPut, "/api/v1/admin/therapists/1/schedules", testOrigin, http.StatusUnauthorized},
+		{"admin time off requires session", http.MethodPost, "/api/v1/admin/therapists/1/time-off", testOrigin, http.StatusUnauthorized},
 	}
 
 	for _, tt := range tests {

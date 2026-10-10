@@ -12,14 +12,22 @@ import (
 )
 
 type fakeStore struct {
-	items  map[int64]Therapist
-	slugs  map[string]bool
-	links  map[int64][]int64
-	nextID int64
+	items     map[int64]Therapist
+	slugs     map[string]bool
+	links     map[int64][]int64
+	schedules map[int64][]Shift
+	timeOffs  map[int64]TimeOff
+	nextID    int64
 }
 
 func newFakeStore() *fakeStore {
-	return &fakeStore{items: map[int64]Therapist{}, slugs: map[string]bool{}, links: map[int64][]int64{}}
+	return &fakeStore{
+		items:     map[int64]Therapist{},
+		slugs:     map[string]bool{},
+		links:     map[int64][]int64{},
+		schedules: map[int64][]Shift{},
+		timeOffs:  map[int64]TimeOff{},
+	}
 }
 
 func (f *fakeStore) ListActive(ctx context.Context) ([]Therapist, error) {
