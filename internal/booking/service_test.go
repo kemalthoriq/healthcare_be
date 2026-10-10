@@ -14,6 +14,7 @@ type fakeStore struct {
 	created []NewBooking
 	codes   []string
 	byCode  map[string]Booking
+	admin   map[int64]AdminBooking
 }
 
 func (f *fakeStore) Create(ctx context.Context, code string, nb NewBooking) (Booking, error) {
