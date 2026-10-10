@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
+	"github.com/kemalthoriq/healthcare_be/internal/treatment"
 )
 
 const testOrigin = "http://localhost:3000"
@@ -20,7 +21,13 @@ func (okPinger) Ping(ctx context.Context) error {
 }
 
 func newTestRouter() http.Handler {
-	return newRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), okPinger{}, auth.NewHandler(nil, false), testOrigin)
+	return newRouter(routerDeps{
+		log:            slog.New(slog.NewTextHandler(io.Discard, nil)),
+		db:             okPinger{},
+		frontendOrigin: testOrigin,
+		auth:           auth.NewHandler(nil, false),
+		treatment:      treatment.NewHandler(nil),
+	})
 }
 
 func TestRouter_HealthEndpoints(t *testing.T) {
@@ -78,7 +85,7 @@ func TestRouter_AppliesMiddleware(t *testing.T) {
 	}
 }
 
-func TestRouter_AdminAuthRoutes(t *testing.T) {
+func TestRouter_ProtectedRoutes(t *testing.T) {
 	tests := []struct {
 		name       string
 		method     string
@@ -90,6 +97,9 @@ func TestRouter_AdminAuthRoutes(t *testing.T) {
 		{"login reaches handler", http.MethodPost, "/api/v1/admin/auth/login", testOrigin, http.StatusUnsupportedMediaType},
 		{"me requires session", http.MethodGet, "/api/v1/admin/auth/me", "", http.StatusUnauthorized},
 		{"logout requires session", http.MethodPost, "/api/v1/admin/auth/logout", testOrigin, http.StatusUnauthorized},
+		{"admin treatment list requires session", http.MethodGet, "/api/v1/admin/treatments", "", http.StatusUnauthorized},
+		{"admin treatment create requires session", http.MethodPost, "/api/v1/admin/treatments", testOrigin, http.StatusUnauthorized},
+		{"admin treatment delete requires session", http.MethodDelete, "/api/v1/admin/treatments/1", testOrigin, http.StatusUnauthorized},
 	}
 
 	for _, tt := range tests {

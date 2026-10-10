@@ -16,6 +16,7 @@ import (
 	"github.com/kemalthoriq/healthcare_be/internal/platform/config"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/database"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/logger"
+	"github.com/kemalthoriq/healthcare_be/internal/treatment"
 )
 
 func main() {
@@ -57,9 +58,17 @@ func run() error {
 		return fmt.Errorf("ensure admin: %w", err)
 	}
 
+	router := newRouter(routerDeps{
+		log:            log,
+		db:             pool,
+		frontendOrigin: cfg.FrontendOrigin,
+		auth:           auth.NewHandler(authService, cfg.IsProduction()),
+		treatment:      treatment.NewHandler(treatment.NewService(treatment.NewRepository(pool))),
+	})
+
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           newRouter(log, pool, auth.NewHandler(authService, cfg.IsProduction()), cfg.FrontendOrigin),
+		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      15 * time.Second,

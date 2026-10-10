@@ -15,6 +15,19 @@ type Session struct {
 	CreatedAt time.Time
 }
 
+type Treatment struct {
+	ID              int64
+	Name            string
+	Slug            string
+	Description     string
+	ImageUrl        string
+	Price           int64
+	DurationMinutes int32
+	IsActive        bool
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
 type User struct {
 	ID           int64
 	Name         string
