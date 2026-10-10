@@ -18,10 +18,12 @@ var (
 )
 
 type treatmentFinder interface {
+	Get(ctx context.Context, id int64) (treatment.Treatment, error)
 	GetActiveBySlug(ctx context.Context, slug string) (treatment.Treatment, error)
 }
 
 type therapistFinder interface {
+	Get(ctx context.Context, id int64) (therapist.Therapist, error)
 	GetActiveBySlug(ctx context.Context, slug string) (therapist.Therapist, error)
 	ListActiveForTreatment(ctx context.Context, treatmentSlug string) ([]therapist.Therapist, error)
 	ListSchedules(ctx context.Context, therapistID int64) ([]therapist.Shift, error)

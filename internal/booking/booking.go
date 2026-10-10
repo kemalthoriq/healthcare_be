@@ -29,6 +29,10 @@ type Booking struct {
 	Status       string
 	Price        int64
 	PatientNote  string
+	CancelReason string
+	ConfirmedAt  *time.Time
+	CancelledAt  *time.Time
+	CompletedAt  *time.Time
 	CreatedAt    time.Time
 }
 

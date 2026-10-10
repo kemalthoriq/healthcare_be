@@ -13,6 +13,7 @@ type fakeStore struct {
 	results []error
 	created []NewBooking
 	codes   []string
+	byCode  map[string]Booking
 }
 
 func (f *fakeStore) Create(ctx context.Context, code string, nb NewBooking) (Booking, error) {
