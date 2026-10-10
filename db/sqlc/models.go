@@ -8,6 +8,13 @@ import (
 	"time"
 )
 
+type Session struct {
+	ID        string
+	UserID    int64
+	ExpiresAt time.Time
+	CreatedAt time.Time
+}
+
 type User struct {
 	ID           int64
 	Name         string

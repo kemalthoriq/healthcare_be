@@ -7,7 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/kemalthoriq/healthcare_be/internal/auth"
 )
+
+const testOrigin = "http://localhost:3000"
 
 type okPinger struct{}
 
@@ -16,7 +20,7 @@ func (okPinger) Ping(ctx context.Context) error {
 }
 
 func newTestRouter() http.Handler {
-	return newRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), okPinger{})
+	return newRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), okPinger{}, auth.NewHandler(nil, false), testOrigin)
 }
 
 func TestRouter_HealthEndpoints(t *testing.T) {
@@ -71,5 +75,36 @@ func TestRouter_AppliesMiddleware(t *testing.T) {
 	}
 	if rec.Header().Get("X-Content-Type-Options") != "nosniff" {
 		t.Error("missing security headers")
+	}
+}
+
+func TestRouter_AdminAuthRoutes(t *testing.T) {
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		origin     string
+		wantStatus int
+	}{
+		{"login rejects foreign origin", http.MethodPost, "/api/v1/admin/auth/login", "https://evil.example", http.StatusForbidden},
+		{"login reaches handler", http.MethodPost, "/api/v1/admin/auth/login", testOrigin, http.StatusUnsupportedMediaType},
+		{"me requires session", http.MethodGet, "/api/v1/admin/auth/me", "", http.StatusUnauthorized},
+		{"logout requires session", http.MethodPost, "/api/v1/admin/auth/logout", testOrigin, http.StatusUnauthorized},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.path, nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			newTestRouter().ServeHTTP(rec, req)
+
+			if rec.Code != tt.wantStatus {
+				t.Errorf("status = %d, want %d, body = %s", rec.Code, tt.wantStatus, rec.Body.String())
+			}
+		})
 	}
 }

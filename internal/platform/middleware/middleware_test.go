@@ -170,3 +170,38 @@ func TestSecureHeaders(t *testing.T) {
 		}
 	}
 }
+
+func TestSameOrigin(t *testing.T) {
+	handler := SameOrigin("http://localhost:3000")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	tests := []struct {
+		name       string
+		method     string
+		origin     string
+		wantStatus int
+	}{
+		{"get without origin", http.MethodGet, "", http.StatusNoContent},
+		{"post from frontend", http.MethodPost, "http://localhost:3000", http.StatusNoContent},
+		{"post without origin", http.MethodPost, "", http.StatusForbidden},
+		{"post from other site", http.MethodPost, "https://evil.example", http.StatusForbidden},
+		{"delete from other site", http.MethodDelete, "https://evil.example", http.StatusForbidden},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, "/", nil)
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+
+			handler.ServeHTTP(rec, req)
+
+			if rec.Code != tt.wantStatus {
+				t.Errorf("status = %d, want %d", rec.Code, tt.wantStatus)
+			}
+		})
+	}
+}
