@@ -25,6 +25,8 @@ var ErrSlotTaken = apperr.Conflict("SLOT_TAKEN", "Jam ini baru saja dipesan. Sil
 
 type store interface {
 	Create(ctx context.Context, code string, nb NewBooking) (Booking, error)
+	GetByCode(ctx context.Context, code string) (Booking, error)
+	CancelByCode(ctx context.Context, code, reason string, minStartAt time.Time) (Booking, error)
 }
 
 type Service struct {

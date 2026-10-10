@@ -138,6 +138,64 @@ func (h *Handler) Dates(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, r, http.StatusOK, out)
 }
 
+type detailResponse struct {
+	Code           string    `json:"code"`
+	Status         string    `json:"status"`
+	PatientName    string    `json:"patient_name"`
+	Treatment      namedRef  `json:"treatment"`
+	Therapist      namedRef  `json:"therapist"`
+	StartAt        time.Time `json:"start_at"`
+	EndAt          time.Time `json:"end_at"`
+	Price          int64     `json:"price"`
+	Note           string    `json:"note"`
+	CancelReason   string    `json:"cancel_reason"`
+	CanCancel      bool      `json:"can_cancel"`
+	CancelDeadline time.Time `json:"cancel_deadline"`
+}
+
+func (h *Handler) toDetailResponse(d Detail) detailResponse {
+	return detailResponse{
+		Code:           d.Booking.Code,
+		Status:         d.Booking.Status,
+		PatientName:    d.Booking.PatientName,
+		Treatment:      namedRef{Slug: d.Treatment.Slug, Name: d.Treatment.Name},
+		Therapist:      namedRef{Slug: d.Therapist.Slug, Name: d.Therapist.Name},
+		StartAt:        d.Booking.StartAt.In(h.loc),
+		EndAt:          d.Booking.EndAt.In(h.loc),
+		Price:          d.Booking.Price,
+		Note:           d.Booking.PatientNote,
+		CancelReason:   d.Booking.CancelReason,
+		CanCancel:      d.CanCancel,
+		CancelDeadline: d.CancelDeadline.In(h.loc),
+	}
+}
+
+func (h *Handler) GetByCode(w http.ResponseWriter, r *http.Request) {
+	d, err := h.service.GetByCode(r.Context(), r.PathValue("code"))
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.JSON(w, r, http.StatusOK, h.toDetailResponse(d))
+}
+
+func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := httpx.DecodeJSON(w, r, &req); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+
+	d, err := h.service.CancelByCode(r.Context(), r.PathValue("code"), req.Reason)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	httpx.JSON(w, r, http.StatusOK, h.toDetailResponse(d))
+}
+
 func requireParams(treatmentSlug, therapistSlug string) map[string]string {
 	fields := map[string]string{}
 	if treatmentSlug == "" {

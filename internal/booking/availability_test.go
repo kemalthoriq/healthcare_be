@@ -21,8 +21,16 @@ func (fakeTreatments) GetActiveBySlug(ctx context.Context, slug string) (treatme
 	return treatment.Treatment{ID: 1, Slug: slug, Price: 350000, DurationMinutes: 60, IsActive: true}, nil
 }
 
+func (fakeTreatments) Get(ctx context.Context, id int64) (treatment.Treatment, error) {
+	return treatment.Treatment{ID: id, Slug: "facial-glow", Name: "Facial Glow"}, nil
+}
+
 type fakeTherapists struct {
 	timeOffs []therapist.TimeOff
+}
+
+func (fakeTherapists) Get(ctx context.Context, id int64) (therapist.Therapist, error) {
+	return therapist.Therapist{ID: id, Slug: "dr-sari", Name: "dr. Sari"}, nil
 }
 
 func (fakeTherapists) GetActiveBySlug(ctx context.Context, slug string) (therapist.Therapist, error) {
@@ -50,7 +58,7 @@ func (f fakeTherapists) ListUpcomingTimeOff(ctx context.Context, therapistID int
 type fakeSettings struct{}
 
 func (fakeSettings) Get(ctx context.Context) (setting.Settings, error) {
-	return setting.Settings{BufferMinutes: 15, MinBookingLeadMinutes: 120, MaxBookingDaysAhead: 30}, nil
+	return setting.Settings{BufferMinutes: 15, MinBookingLeadMinutes: 120, MaxBookingDaysAhead: 30, CancelDeadlineHours: 24}, nil
 }
 
 type fakeBookings struct {

@@ -116,6 +116,8 @@ func TestRouter_ProtectedRoutes(t *testing.T) {
 		{"dates validates query", http.MethodGet, "/api/v1/availability/dates?treatment=a&therapist=b&month=oktober", "", http.StatusUnprocessableEntity},
 		{"create booking rejects foreign origin", http.MethodPost, "/api/v1/bookings", "https://evil.example", http.StatusForbidden},
 		{"create booking requires json", http.MethodPost, "/api/v1/bookings", testOrigin, http.StatusUnsupportedMediaType},
+		{"cancel booking rejects foreign origin", http.MethodPost, "/api/v1/bookings/LMR-AAAA-AAAA/cancel", "https://evil.example", http.StatusForbidden},
+		{"cancel booking requires json", http.MethodPost, "/api/v1/bookings/LMR-AAAA-AAAA/cancel", testOrigin, http.StatusUnsupportedMediaType},
 	}
 
 	for _, tt := range tests {

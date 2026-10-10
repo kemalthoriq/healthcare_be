@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -13,8 +14,10 @@ import (
 )
 
 var (
-	errSlotTaken = errors.New("booking slot taken")
-	errCodeTaken = errors.New("booking code taken")
+	errSlotTaken      = errors.New("booking slot taken")
+	errCodeTaken      = errors.New("booking code taken")
+	errNotFound       = errors.New("booking not found")
+	errNotCancellable = errors.New("booking not cancellable")
 )
 
 type Repository struct {
@@ -93,6 +96,32 @@ func (r *Repository) ListActiveRanges(ctx context.Context, therapistID int64, fr
 	return out, nil
 }
 
+func (r *Repository) GetByCode(ctx context.Context, code string) (Booking, error) {
+	row, err := r.q.GetBookingByCode(ctx, code)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Booking{}, errNotFound
+	}
+	if err != nil {
+		return Booking{}, err
+	}
+	return toBooking(row), nil
+}
+
+func (r *Repository) CancelByCode(ctx context.Context, code, reason string, minStartAt time.Time) (Booking, error) {
+	row, err := r.q.CancelBookingByCode(ctx, sqlc.CancelBookingByCodeParams{
+		Code:         code,
+		CancelReason: reason,
+		MinStartAt:   minStartAt,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Booking{}, errNotCancellable
+	}
+	if err != nil {
+		return Booking{}, err
+	}
+	return toBooking(row), nil
+}
+
 func toBooking(row sqlc.Booking) Booking {
 	return Booking{
 		ID:           row.ID,
@@ -107,6 +136,10 @@ func toBooking(row sqlc.Booking) Booking {
 		Status:       row.Status,
 		Price:        row.Price,
 		PatientNote:  row.PatientNote,
+		CancelReason: row.CancelReason,
+		ConfirmedAt:  row.ConfirmedAt,
+		CancelledAt:  row.CancelledAt,
+		CompletedAt:  row.CompletedAt,
 		CreatedAt:    row.CreatedAt,
 	}
 }

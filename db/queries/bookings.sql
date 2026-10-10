@@ -22,3 +22,17 @@ WHERE therapist_id = $1
   AND blocked_until > sqlc.arg(range_start)
   AND start_at < sqlc.arg(range_end)
 ORDER BY start_at;
+-- name: GetBookingByCode :one
+SELECT * FROM bookings
+WHERE code = $1;
+
+-- name: CancelBookingByCode :one
+UPDATE bookings
+SET status = 'cancelled',
+    cancel_reason = sqlc.arg(cancel_reason),
+    cancelled_at = now(),
+    updated_at = now()
+WHERE code = sqlc.arg(code)
+  AND status IN ('pending', 'confirmed')
+  AND start_at > sqlc.arg(min_start_at)
+RETURNING *;

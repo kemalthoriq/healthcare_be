@@ -10,6 +10,50 @@ import (
 	"time"
 )
 
+const cancelBookingByCode = `-- name: CancelBookingByCode :one
+UPDATE bookings
+SET status = 'cancelled',
+    cancel_reason = $1,
+    cancelled_at = now(),
+    updated_at = now()
+WHERE code = $2
+  AND status IN ('pending', 'confirmed')
+  AND start_at > $3
+RETURNING id, code, patient_id, treatment_id, therapist_id, patient_name, start_at, end_at, blocked_until, status, price, patient_note, cancel_reason, confirmed_at, cancelled_at, completed_at, created_at, updated_at
+`
+
+type CancelBookingByCodeParams struct {
+	CancelReason string
+	Code         string
+	MinStartAt   time.Time
+}
+
+func (q *Queries) CancelBookingByCode(ctx context.Context, arg CancelBookingByCodeParams) (Booking, error) {
+	row := q.db.QueryRow(ctx, cancelBookingByCode, arg.CancelReason, arg.Code, arg.MinStartAt)
+	var i Booking
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.PatientID,
+		&i.TreatmentID,
+		&i.TherapistID,
+		&i.PatientName,
+		&i.StartAt,
+		&i.EndAt,
+		&i.BlockedUntil,
+		&i.Status,
+		&i.Price,
+		&i.PatientNote,
+		&i.CancelReason,
+		&i.ConfirmedAt,
+		&i.CancelledAt,
+		&i.CompletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createBooking = `-- name: CreateBooking :one
 INSERT INTO bookings (
     code, patient_id, treatment_id, therapist_id, patient_name,
@@ -45,6 +89,37 @@ func (q *Queries) CreateBooking(ctx context.Context, arg CreateBookingParams) (B
 		arg.Price,
 		arg.PatientNote,
 	)
+	var i Booking
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.PatientID,
+		&i.TreatmentID,
+		&i.TherapistID,
+		&i.PatientName,
+		&i.StartAt,
+		&i.EndAt,
+		&i.BlockedUntil,
+		&i.Status,
+		&i.Price,
+		&i.PatientNote,
+		&i.CancelReason,
+		&i.ConfirmedAt,
+		&i.CancelledAt,
+		&i.CompletedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getBookingByCode = `-- name: GetBookingByCode :one
+SELECT id, code, patient_id, treatment_id, therapist_id, patient_name, start_at, end_at, blocked_until, status, price, patient_note, cancel_reason, confirmed_at, cancelled_at, completed_at, created_at, updated_at FROM bookings
+WHERE code = $1
+`
+
+func (q *Queries) GetBookingByCode(ctx context.Context, code string) (Booking, error) {
+	row := q.db.QueryRow(ctx, getBookingByCode, code)
 	var i Booking
 	err := row.Scan(
 		&i.ID,
