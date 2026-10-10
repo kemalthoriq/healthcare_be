@@ -36,7 +36,7 @@ DELETE FROM therapists
 WHERE id = $1;
 
 -- name: ListTherapistsByTreatment :many
-SELECT th.id, th.name, th.slug, th.title, th.bio, th.photo_url, th.is_active, th.created_at, th.updated_at
+SELECT th.id, th.name, th.slug, th.title, th.bio, th.photo_url, th.is_active, th.created_at, th.updated_at, th.user_id
 FROM therapists th
 JOIN treatment_therapists tt ON tt.therapist_id = th.id
 WHERE tt.treatment_id = $1
@@ -49,3 +49,13 @@ WHERE treatment_id = $1;
 -- name: AddTreatmentTherapists :exec
 INSERT INTO treatment_therapists (treatment_id, therapist_id)
 SELECT sqlc.arg(treatment_id), unnest(sqlc.arg(therapist_ids)::bigint[]);
+
+-- name: GetTherapistByUserID :one
+SELECT * FROM therapists
+WHERE user_id = $1;
+
+-- name: SetTherapistUser :execrows
+UPDATE therapists
+SET user_id = $2,
+    updated_at = now()
+WHERE id = $1 AND user_id IS NULL;

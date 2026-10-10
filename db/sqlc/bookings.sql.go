@@ -151,6 +151,7 @@ WHERE therapist_id = $1
   AND status IN ('pending', 'confirmed')
   AND blocked_until > $2
   AND start_at < $3
+  AND id <> $4
 ORDER BY start_at
 `
 
@@ -158,6 +159,7 @@ type ListActiveBookingRangesParams struct {
 	TherapistID int64
 	RangeStart  time.Time
 	RangeEnd    time.Time
+	ExcludeID   int64
 }
 
 type ListActiveBookingRangesRow struct {
@@ -166,7 +168,12 @@ type ListActiveBookingRangesRow struct {
 }
 
 func (q *Queries) ListActiveBookingRanges(ctx context.Context, arg ListActiveBookingRangesParams) ([]ListActiveBookingRangesRow, error) {
-	rows, err := q.db.Query(ctx, listActiveBookingRanges, arg.TherapistID, arg.RangeStart, arg.RangeEnd)
+	rows, err := q.db.Query(ctx, listActiveBookingRanges,
+		arg.TherapistID,
+		arg.RangeStart,
+		arg.RangeEnd,
+		arg.ExcludeID,
+	)
 	if err != nil {
 		return nil, err
 	}

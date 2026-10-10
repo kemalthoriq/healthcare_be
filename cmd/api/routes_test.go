@@ -32,6 +32,7 @@ func newTestRouter() http.Handler {
 		auth:           auth.NewHandler(nil, false),
 		treatment:      treatment.NewHandler(nil),
 		therapist:      therapist.NewHandler(nil),
+		account:        therapist.NewAccountHandler(nil),
 		setting:        setting.NewHandler(nil),
 		booking:        booking.NewHandler(nil, nil, time.UTC),
 	})
@@ -120,6 +121,9 @@ func TestRouter_ProtectedRoutes(t *testing.T) {
 		{"cancel booking requires json", http.MethodPost, "/api/v1/bookings/LMR-AAAA-AAAA/cancel", testOrigin, http.StatusUnsupportedMediaType},
 		{"admin booking list requires session", http.MethodGet, "/api/v1/admin/bookings", "", http.StatusUnauthorized},
 		{"admin booking confirm requires session", http.MethodPost, "/api/v1/admin/bookings/1/confirm", testOrigin, http.StatusUnauthorized},
+		{"booking note requires session", http.MethodPut, "/api/v1/admin/bookings/1/note", testOrigin, http.StatusUnauthorized},
+		{"reschedule requires session", http.MethodPost, "/api/v1/admin/bookings/1/reschedule", testOrigin, http.StatusUnauthorized},
+		{"therapist account requires session", http.MethodPost, "/api/v1/admin/therapists/1/account", testOrigin, http.StatusUnauthorized},
 	}
 
 	for _, tt := range tests {

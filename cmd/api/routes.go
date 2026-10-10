@@ -20,6 +20,7 @@ type routerDeps struct {
 	auth           *auth.Handler
 	treatment      *treatment.Handler
 	therapist      *therapist.Handler
+	account        *therapist.AccountHandler
 	setting        *setting.Handler
 	booking        *booking.Handler
 }
@@ -27,6 +28,9 @@ type routerDeps struct {
 func newRouter(d routerDeps) http.Handler {
 	admin := func(h http.HandlerFunc) http.Handler {
 		return d.auth.RequireAuth(auth.RequireRole(auth.RoleAdmin)(h))
+	}
+	staff := func(h http.HandlerFunc) http.Handler {
+		return d.auth.RequireAuth(auth.RequireRole(auth.RoleAdmin, auth.RoleTherapist)(h))
 	}
 
 	api := http.NewServeMux()
@@ -57,6 +61,7 @@ func newRouter(d routerDeps) http.Handler {
 	api.Handle("GET /api/v1/admin/therapists/{id}/time-off", admin(d.therapist.ListTimeOff))
 	api.Handle("POST /api/v1/admin/therapists/{id}/time-off", admin(d.therapist.CreateTimeOff))
 	api.Handle("DELETE /api/v1/admin/therapists/{id}/time-off/{timeOffId}", admin(d.therapist.DeleteTimeOff))
+	api.Handle("POST /api/v1/admin/therapists/{id}/account", admin(d.account.Create))
 
 	api.Handle("GET /api/v1/admin/settings", admin(d.setting.Get))
 	api.Handle("PUT /api/v1/admin/settings", admin(d.setting.Update))
@@ -66,12 +71,14 @@ func newRouter(d routerDeps) http.Handler {
 	api.HandleFunc("POST /api/v1/bookings", d.booking.Create)
 	api.HandleFunc("GET /api/v1/bookings/{code}", d.booking.GetByCode)
 	api.HandleFunc("POST /api/v1/bookings/{code}/cancel", d.booking.Cancel)
-	api.Handle("GET /api/v1/admin/bookings", admin(d.booking.ListAdmin))
-	api.Handle("GET /api/v1/admin/bookings/{id}", admin(d.booking.GetAdmin))
+	api.Handle("GET /api/v1/admin/bookings", staff(d.booking.ListAdmin))
+	api.Handle("GET /api/v1/admin/bookings/{id}", staff(d.booking.GetAdmin))
+	api.Handle("POST /api/v1/admin/bookings/{id}/complete", staff(d.booking.Complete))
+	api.Handle("PUT /api/v1/admin/bookings/{id}/note", staff(d.booking.SaveNote))
 	api.Handle("POST /api/v1/admin/bookings/{id}/confirm", admin(d.booking.Confirm))
 	api.Handle("POST /api/v1/admin/bookings/{id}/cancel", admin(d.booking.CancelAdmin))
-	api.Handle("POST /api/v1/admin/bookings/{id}/complete", admin(d.booking.Complete))
 	api.Handle("POST /api/v1/admin/bookings/{id}/no-show", admin(d.booking.NoShow))
+	api.Handle("POST /api/v1/admin/bookings/{id}/reschedule", admin(d.booking.Reschedule))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)

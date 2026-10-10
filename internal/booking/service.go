@@ -30,6 +30,8 @@ type store interface {
 	ListAdmin(ctx context.Context, f AdminFilter, limit, offset int) ([]AdminBooking, int64, error)
 	GetAdmin(ctx context.Context, id int64) (AdminBooking, error)
 	Transition(ctx context.Context, id int64, from, to, reason string) error
+	Reschedule(ctx context.Context, id int64, startAt, endAt, blockedUntil time.Time) error
+	SaveNote(ctx context.Context, bookingID, authorID int64, content string) error
 }
 
 type Service struct {
@@ -68,7 +70,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Created, error) {
 		return Created{}, apperr.Validation(fields)
 	}
 
-	p, err := s.availability.check(ctx, in.TreatmentSlug, in.TherapistSlug, in.StartAt)
+	p, err := s.availability.check(ctx, in.TreatmentSlug, in.TherapistSlug, in.StartAt, 0)
 	if err != nil {
 		return Created{}, err
 	}

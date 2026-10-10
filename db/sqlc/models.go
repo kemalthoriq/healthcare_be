@@ -67,6 +67,7 @@ type Therapist struct {
 	IsActive  bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	UserID    *int64
 }
 
 type TherapistSchedule struct {
@@ -97,6 +98,14 @@ type Treatment struct {
 	IsActive        bool
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+}
+
+type TreatmentNote struct {
+	BookingID int64
+	AuthorID  int64
+	Content   string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type TreatmentTherapist struct {

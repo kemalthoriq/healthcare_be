@@ -3,8 +3,10 @@ package booking
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/kemalthoriq/healthcare_be/db/sqlc"
 )
@@ -82,8 +84,9 @@ func (r *Repository) GetAdmin(ctx context.Context, id int64) (AdminBooking, erro
 			CompletedAt:  row.CompletedAt,
 			CreatedAt:    row.CreatedAt,
 		},
-		PatientPhone: row.PatientPhone,
-		PatientEmail: row.PatientEmail,
+		PatientPhone:  row.PatientPhone,
+		PatientEmail:  row.PatientEmail,
+		TreatmentNote: row.TreatmentNote,
 	}, nil
 }
 
@@ -98,4 +101,29 @@ func (r *Repository) Transition(ctx context.Context, id int64, from, to, reason 
 		return errStatusChanged
 	}
 	return err
+}
+
+func (r *Repository) Reschedule(ctx context.Context, id int64, startAt, endAt, blockedUntil time.Time) error {
+	_, err := r.q.RescheduleBooking(ctx, sqlc.RescheduleBookingParams{
+		ID:           id,
+		StartAt:      startAt,
+		EndAt:        endAt,
+		BlockedUntil: blockedUntil,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return errStatusChanged
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23P01" {
+		return errSlotTaken
+	}
+	return err
+}
+
+func (r *Repository) SaveNote(ctx context.Context, bookingID, authorID int64, content string) error {
+	return r.q.UpsertTreatmentNote(ctx, sqlc.UpsertTreatmentNoteParams{
+		BookingID: bookingID,
+		AuthorID:  authorID,
+		Content:   content,
+	})
 }

@@ -6,12 +6,16 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/kemalthoriq/healthcare_be/db/sqlc"
 )
 
-var errNotFound = errors.New("not found")
+var (
+	errNotFound   = errors.New("not found")
+	errEmailTaken = errors.New("email already registered")
+)
 
 type Repository struct {
 	q *sqlc.Queries
@@ -32,6 +36,10 @@ func (r *Repository) CreateUser(ctx context.Context, u NewUser) (User, error) {
 		PasswordHash: u.PasswordHash,
 		Role:         u.Role,
 	})
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return User{}, errEmailTaken
+	}
 	if err != nil {
 		return User{}, err
 	}

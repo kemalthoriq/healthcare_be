@@ -41,30 +41,33 @@ func (q *Queries) CountAdminBookings(ctx context.Context, arg CountAdminBookings
 const getAdminBooking = `-- name: GetAdminBooking :one
 SELECT b.id, b.code, b.treatment_id, b.therapist_id, b.patient_name, b.start_at, b.end_at,
        b.status, b.price, b.patient_note, b.cancel_reason, b.confirmed_at, b.cancelled_at,
-       b.completed_at, b.created_at, p.phone AS patient_phone, p.email AS patient_email
+       b.completed_at, b.created_at, p.phone AS patient_phone, p.email AS patient_email,
+       COALESCE(n.content, '') AS treatment_note
 FROM bookings b
 JOIN patients p ON p.id = b.patient_id
+LEFT JOIN treatment_notes n ON n.booking_id = b.id
 WHERE b.id = $1
 `
 
 type GetAdminBookingRow struct {
-	ID           int64
-	Code         string
-	TreatmentID  int64
-	TherapistID  int64
-	PatientName  string
-	StartAt      time.Time
-	EndAt        time.Time
-	Status       string
-	Price        int64
-	PatientNote  string
-	CancelReason string
-	ConfirmedAt  *time.Time
-	CancelledAt  *time.Time
-	CompletedAt  *time.Time
-	CreatedAt    time.Time
-	PatientPhone string
-	PatientEmail string
+	ID            int64
+	Code          string
+	TreatmentID   int64
+	TherapistID   int64
+	PatientName   string
+	StartAt       time.Time
+	EndAt         time.Time
+	Status        string
+	Price         int64
+	PatientNote   string
+	CancelReason  string
+	ConfirmedAt   *time.Time
+	CancelledAt   *time.Time
+	CompletedAt   *time.Time
+	CreatedAt     time.Time
+	PatientPhone  string
+	PatientEmail  string
+	TreatmentNote string
 }
 
 func (q *Queries) GetAdminBooking(ctx context.Context, id int64) (GetAdminBookingRow, error) {
@@ -88,6 +91,7 @@ func (q *Queries) GetAdminBooking(ctx context.Context, id int64) (GetAdminBookin
 		&i.CreatedAt,
 		&i.PatientPhone,
 		&i.PatientEmail,
+		&i.TreatmentNote,
 	)
 	return i, err
 }
@@ -167,6 +171,35 @@ func (q *Queries) ListAdminBookings(ctx context.Context, arg ListAdminBookingsPa
 	return items, nil
 }
 
+const rescheduleBooking = `-- name: RescheduleBooking :one
+UPDATE bookings
+SET start_at = $2,
+    end_at = $3,
+    blocked_until = $4,
+    updated_at = now()
+WHERE id = $1 AND status IN ('pending', 'confirmed')
+RETURNING id
+`
+
+type RescheduleBookingParams struct {
+	ID           int64
+	StartAt      time.Time
+	EndAt        time.Time
+	BlockedUntil time.Time
+}
+
+func (q *Queries) RescheduleBooking(ctx context.Context, arg RescheduleBookingParams) (int64, error) {
+	row := q.db.QueryRow(ctx, rescheduleBooking,
+		arg.ID,
+		arg.StartAt,
+		arg.EndAt,
+		arg.BlockedUntil,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
 const transitionBooking = `-- name: TransitionBooking :one
 UPDATE bookings
 SET status = $1::text,
@@ -196,4 +229,24 @@ func (q *Queries) TransitionBooking(ctx context.Context, arg TransitionBookingPa
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const upsertTreatmentNote = `-- name: UpsertTreatmentNote :exec
+INSERT INTO treatment_notes (booking_id, author_id, content)
+VALUES ($1, $2, $3)
+ON CONFLICT (booking_id) DO UPDATE
+SET content = EXCLUDED.content,
+    author_id = EXCLUDED.author_id,
+    updated_at = now()
+`
+
+type UpsertTreatmentNoteParams struct {
+	BookingID int64
+	AuthorID  int64
+	Content   string
+}
+
+func (q *Queries) UpsertTreatmentNote(ctx context.Context, arg UpsertTreatmentNoteParams) error {
+	_, err := q.db.Exec(ctx, upsertTreatmentNote, arg.BookingID, arg.AuthorID, arg.Content)
+	return err
 }

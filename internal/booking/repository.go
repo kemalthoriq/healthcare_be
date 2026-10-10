@@ -79,11 +79,12 @@ func (r *Repository) Create(ctx context.Context, code string, nb NewBooking) (Bo
 	return toBooking(row), nil
 }
 
-func (r *Repository) ListActiveRanges(ctx context.Context, therapistID int64, from, to time.Time) ([]Interval, error) {
+func (r *Repository) ListActiveRanges(ctx context.Context, therapistID int64, from, to time.Time, excludeID int64) ([]Interval, error) {
 	rows, err := r.q.ListActiveBookingRanges(ctx, sqlc.ListActiveBookingRangesParams{
 		TherapistID: therapistID,
 		RangeStart:  from,
 		RangeEnd:    to,
+		ExcludeID:   excludeID,
 	})
 	if err != nil {
 		return nil, err
