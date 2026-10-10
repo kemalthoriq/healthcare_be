@@ -6,10 +6,11 @@ import (
 	"github.com/kemalthoriq/healthcare_be/internal/platform/health"
 )
 
-func newRouter() http.Handler {
+func newRouter(db health.Pinger) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("GET /healthz", health.Handler)
+	mux.HandleFunc("GET /healthz", health.Live)
+	mux.HandleFunc("GET /readyz", health.Ready(db))
 
 	return mux
 }
