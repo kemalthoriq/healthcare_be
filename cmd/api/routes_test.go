@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,8 +15,12 @@ func (okPinger) Ping(ctx context.Context) error {
 	return nil
 }
 
+func newTestRouter() http.Handler {
+	return newRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), okPinger{})
+}
+
 func TestRouter_HealthEndpoints(t *testing.T) {
-	router := newRouter(okPinger{})
+	router := newTestRouter()
 
 	tests := []struct {
 		method     string
@@ -47,9 +53,23 @@ func TestRouter_UnknownPathReturnsNotFound(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/does-not-exist", nil)
 
-	newRouter(okPinger{}).ServeHTTP(rec, req)
+	newTestRouter().ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
+func TestRouter_AppliesMiddleware(t *testing.T) {
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+
+	newTestRouter().ServeHTTP(rec, req)
+
+	if rec.Header().Get("X-Request-ID") == "" {
+		t.Error("missing X-Request-ID header")
+	}
+	if rec.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Error("missing security headers")
 	}
 }
