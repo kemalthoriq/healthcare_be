@@ -1,0 +1,5 @@
+/docs/
+.env
+*.exe
+coverage.out
+/bin/
