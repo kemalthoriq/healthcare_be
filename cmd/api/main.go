@@ -10,12 +10,15 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/kemalthoriq/healthcare_be/db/migrations"
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
+	"github.com/kemalthoriq/healthcare_be/internal/booking"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/config"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/database"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/logger"
+	"github.com/kemalthoriq/healthcare_be/internal/setting"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
 )
@@ -59,8 +62,15 @@ func run() error {
 		return fmt.Errorf("ensure admin: %w", err)
 	}
 
+	clinicLocation, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		return fmt.Errorf("load clinic timezone: %w", err)
+	}
+
 	treatmentService := treatment.NewService(treatment.NewRepository(pool))
 	therapistService := therapist.NewService(therapist.NewRepository(pool), treatmentService)
+	settingService := setting.NewService(setting.NewRepository(pool))
+	availability := booking.NewAvailability(treatmentService, therapistService, settingService, clinicLocation)
 
 	router := newRouter(routerDeps{
 		log:            log,
@@ -69,6 +79,8 @@ func run() error {
 		auth:           auth.NewHandler(authService, cfg.IsProduction()),
 		treatment:      treatment.NewHandler(treatmentService),
 		therapist:      therapist.NewHandler(therapistService),
+		setting:        setting.NewHandler(settingService),
+		booking:        booking.NewHandler(availability, clinicLocation),
 	})
 
 	srv := &http.Server{

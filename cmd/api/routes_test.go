@@ -7,8 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
+	"github.com/kemalthoriq/healthcare_be/internal/booking"
+	"github.com/kemalthoriq/healthcare_be/internal/setting"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
 )
@@ -29,6 +32,8 @@ func newTestRouter() http.Handler {
 		auth:           auth.NewHandler(nil, false),
 		treatment:      treatment.NewHandler(nil),
 		therapist:      therapist.NewHandler(nil),
+		setting:        setting.NewHandler(nil),
+		booking:        booking.NewHandler(nil, time.UTC),
 	})
 }
 
@@ -106,6 +111,9 @@ func TestRouter_ProtectedRoutes(t *testing.T) {
 		{"admin treatment therapists requires session", http.MethodPut, "/api/v1/admin/treatments/1/therapists", testOrigin, http.StatusUnauthorized},
 		{"admin schedules requires session", http.MethodPut, "/api/v1/admin/therapists/1/schedules", testOrigin, http.StatusUnauthorized},
 		{"admin time off requires session", http.MethodPost, "/api/v1/admin/therapists/1/time-off", testOrigin, http.StatusUnauthorized},
+		{"admin settings requires session", http.MethodPut, "/api/v1/admin/settings", testOrigin, http.StatusUnauthorized},
+		{"slots validates query", http.MethodGet, "/api/v1/availability/slots", "", http.StatusUnprocessableEntity},
+		{"dates validates query", http.MethodGet, "/api/v1/availability/dates?treatment=a&therapist=b&month=oktober", "", http.StatusUnprocessableEntity},
 	}
 
 	for _, tt := range tests {

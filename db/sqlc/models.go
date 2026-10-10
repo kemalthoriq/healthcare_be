@@ -10,6 +10,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ClinicSetting struct {
+	ID                    int16
+	BufferMinutes         int32
+	MinBookingLeadMinutes int32
+	MaxBookingDaysAhead   int32
+	CancelDeadlineHours   int32
+	UpdatedAt             time.Time
+}
+
 type Session struct {
 	ID        string
 	UserID    int64
