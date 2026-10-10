@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/slug"
 )
 
 const (
@@ -65,14 +66,14 @@ func (s *Service) Create(ctx context.Context, in Input) (Treatment, error) {
 		return Treatment{}, apperr.Validation(fields)
 	}
 
-	base := Slugify(in.Name)
+	base := slug.Make(in.Name, "treatment")
 	for attempt := 1; attempt <= maxSlugAttempts; attempt++ {
-		slug := base
+		candidate := base
 		if attempt > 1 {
-			slug = fmt.Sprintf("%s-%d", base, attempt)
+			candidate = fmt.Sprintf("%s-%d", base, attempt)
 		}
 
-		t, err := s.store.Create(ctx, slug, in)
+		t, err := s.store.Create(ctx, candidate, in)
 		if errors.Is(err, errSlugTaken) {
 			continue
 		}

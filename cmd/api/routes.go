@@ -7,6 +7,7 @@ import (
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/health"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/middleware"
+	"github.com/kemalthoriq/healthcare_be/internal/therapist"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
 )
 
@@ -16,6 +17,7 @@ type routerDeps struct {
 	frontendOrigin string
 	auth           *auth.Handler
 	treatment      *treatment.Handler
+	therapist      *therapist.Handler
 }
 
 func newRouter(d routerDeps) http.Handler {
@@ -35,6 +37,17 @@ func newRouter(d routerDeps) http.Handler {
 	api.Handle("GET /api/v1/admin/treatments/{id}", admin(d.treatment.Get))
 	api.Handle("PUT /api/v1/admin/treatments/{id}", admin(d.treatment.Update))
 	api.Handle("DELETE /api/v1/admin/treatments/{id}", admin(d.treatment.Delete))
+
+	api.HandleFunc("GET /api/v1/therapists", d.therapist.ListPublic)
+	api.HandleFunc("GET /api/v1/therapists/{slug}", d.therapist.GetPublic)
+	api.HandleFunc("GET /api/v1/treatments/{slug}/therapists", d.therapist.ListForTreatmentPublic)
+	api.Handle("GET /api/v1/admin/therapists", admin(d.therapist.List))
+	api.Handle("POST /api/v1/admin/therapists", admin(d.therapist.Create))
+	api.Handle("GET /api/v1/admin/therapists/{id}", admin(d.therapist.Get))
+	api.Handle("PUT /api/v1/admin/therapists/{id}", admin(d.therapist.Update))
+	api.Handle("DELETE /api/v1/admin/therapists/{id}", admin(d.therapist.Delete))
+	api.Handle("GET /api/v1/admin/treatments/{id}/therapists", admin(d.therapist.ListForTreatment))
+	api.Handle("PUT /api/v1/admin/treatments/{id}/therapists", admin(d.therapist.SetForTreatment))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)

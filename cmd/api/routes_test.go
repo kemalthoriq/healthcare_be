@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
+	"github.com/kemalthoriq/healthcare_be/internal/therapist"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
 )
 
@@ -27,6 +28,7 @@ func newTestRouter() http.Handler {
 		frontendOrigin: testOrigin,
 		auth:           auth.NewHandler(nil, false),
 		treatment:      treatment.NewHandler(nil),
+		therapist:      therapist.NewHandler(nil),
 	})
 }
 
@@ -100,6 +102,8 @@ func TestRouter_ProtectedRoutes(t *testing.T) {
 		{"admin treatment list requires session", http.MethodGet, "/api/v1/admin/treatments", "", http.StatusUnauthorized},
 		{"admin treatment create requires session", http.MethodPost, "/api/v1/admin/treatments", testOrigin, http.StatusUnauthorized},
 		{"admin treatment delete requires session", http.MethodDelete, "/api/v1/admin/treatments/1", testOrigin, http.StatusUnauthorized},
+		{"admin therapist create requires session", http.MethodPost, "/api/v1/admin/therapists", testOrigin, http.StatusUnauthorized},
+		{"admin treatment therapists requires session", http.MethodPut, "/api/v1/admin/treatments/1/therapists", testOrigin, http.StatusUnauthorized},
 	}
 
 	for _, tt := range tests {
