@@ -118,6 +118,8 @@ func TestRouter_ProtectedRoutes(t *testing.T) {
 		{"create booking requires json", http.MethodPost, "/api/v1/bookings", testOrigin, http.StatusUnsupportedMediaType},
 		{"cancel booking rejects foreign origin", http.MethodPost, "/api/v1/bookings/LMR-AAAA-AAAA/cancel", "https://evil.example", http.StatusForbidden},
 		{"cancel booking requires json", http.MethodPost, "/api/v1/bookings/LMR-AAAA-AAAA/cancel", testOrigin, http.StatusUnsupportedMediaType},
+		{"admin booking list requires session", http.MethodGet, "/api/v1/admin/bookings", "", http.StatusUnauthorized},
+		{"admin booking confirm requires session", http.MethodPost, "/api/v1/admin/bookings/1/confirm", testOrigin, http.StatusUnauthorized},
 	}
 
 	for _, tt := range tests {

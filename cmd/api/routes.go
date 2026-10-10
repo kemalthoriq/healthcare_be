@@ -66,6 +66,12 @@ func newRouter(d routerDeps) http.Handler {
 	api.HandleFunc("POST /api/v1/bookings", d.booking.Create)
 	api.HandleFunc("GET /api/v1/bookings/{code}", d.booking.GetByCode)
 	api.HandleFunc("POST /api/v1/bookings/{code}/cancel", d.booking.Cancel)
+	api.Handle("GET /api/v1/admin/bookings", admin(d.booking.ListAdmin))
+	api.Handle("GET /api/v1/admin/bookings/{id}", admin(d.booking.GetAdmin))
+	api.Handle("POST /api/v1/admin/bookings/{id}/confirm", admin(d.booking.Confirm))
+	api.Handle("POST /api/v1/admin/bookings/{id}/cancel", admin(d.booking.CancelAdmin))
+	api.Handle("POST /api/v1/admin/bookings/{id}/complete", admin(d.booking.Complete))
+	api.Handle("POST /api/v1/admin/bookings/{id}/no-show", admin(d.booking.NoShow))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)

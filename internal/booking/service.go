@@ -27,6 +27,9 @@ type store interface {
 	Create(ctx context.Context, code string, nb NewBooking) (Booking, error)
 	GetByCode(ctx context.Context, code string) (Booking, error)
 	CancelByCode(ctx context.Context, code, reason string, minStartAt time.Time) (Booking, error)
+	ListAdmin(ctx context.Context, f AdminFilter, limit, offset int) ([]AdminBooking, int64, error)
+	GetAdmin(ctx context.Context, id int64) (AdminBooking, error)
+	Transition(ctx context.Context, id int64, from, to, reason string) error
 }
 
 type Service struct {
