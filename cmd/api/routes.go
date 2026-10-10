@@ -48,6 +48,11 @@ func newRouter(d routerDeps) http.Handler {
 	api.Handle("DELETE /api/v1/admin/therapists/{id}", admin(d.therapist.Delete))
 	api.Handle("GET /api/v1/admin/treatments/{id}/therapists", admin(d.therapist.ListForTreatment))
 	api.Handle("PUT /api/v1/admin/treatments/{id}/therapists", admin(d.therapist.SetForTreatment))
+	api.Handle("GET /api/v1/admin/therapists/{id}/schedules", admin(d.therapist.ListSchedules))
+	api.Handle("PUT /api/v1/admin/therapists/{id}/schedules", admin(d.therapist.SetSchedules))
+	api.Handle("GET /api/v1/admin/therapists/{id}/time-off", admin(d.therapist.ListTimeOff))
+	api.Handle("POST /api/v1/admin/therapists/{id}/time-off", admin(d.therapist.CreateTimeOff))
+	api.Handle("DELETE /api/v1/admin/therapists/{id}/time-off/{timeOffId}", admin(d.therapist.DeleteTimeOff))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)
