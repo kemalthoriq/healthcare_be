@@ -5,7 +5,7 @@ endif
 
 GOOSE := go run github.com/pressly/goose/v3/cmd/goose@v3.28.0
 
-.PHONY: run build test vet fmt check db-up db-down db-reset migration
+.PHONY: run build test vet fmt check db-up db-down db-reset migration sqlc
 
 run:
 	go run ./cmd/api
@@ -36,3 +36,6 @@ db-reset:
 
 migration:
 	$(GOOSE) -dir db/migrations -s create $(name) sql
+
+sqlc:
+	docker run --rm -v "$(CURDIR):/src" -w /src sqlc/sqlc:1.31.1 generate
