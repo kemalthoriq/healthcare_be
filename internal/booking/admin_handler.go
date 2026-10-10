@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/httpx"
 )
@@ -24,6 +25,7 @@ type adminBookingResponse struct {
 	EndAt         time.Time  `json:"end_at"`
 	Price         int64      `json:"price"`
 	Note          string     `json:"note,omitempty"`
+	TreatmentNote string     `json:"treatment_note,omitempty"`
 	CancelReason  string     `json:"cancel_reason,omitempty"`
 	ConfirmedAt   *time.Time `json:"confirmed_at,omitempty"`
 	CancelledAt   *time.Time `json:"cancelled_at,omitempty"`
@@ -48,6 +50,7 @@ func (h *Handler) toAdminResponse(b AdminBooking) adminBookingResponse {
 		EndAt:         b.EndAt.In(h.loc),
 		Price:         b.Price,
 		Note:          b.PatientNote,
+		TreatmentNote: b.TreatmentNote,
 		CancelReason:  b.CancelReason,
 		ConfirmedAt:   b.ConfirmedAt,
 		CancelledAt:   b.CancelledAt,
@@ -57,7 +60,24 @@ func (h *Handler) toAdminResponse(b AdminBooking) adminBookingResponse {
 	}
 }
 
+func (h *Handler) actor(r *http.Request) (Actor, error) {
+	user, ok := auth.UserFromContext(r.Context())
+	if !ok {
+		return Actor{}, apperr.Unauthenticated()
+	}
+	if user.Role == auth.RoleTherapist {
+		return h.service.TherapistActor(r.Context(), user.ID)
+	}
+	return Actor{UserID: user.ID}, nil
+}
+
 func (h *Handler) ListAdmin(w http.ResponseWriter, r *http.Request) {
+	actor, err := h.actor(r)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+
 	q := r.URL.Query()
 	var f AdminFilter
 	fields := map[string]string{}
@@ -96,7 +116,7 @@ func (h *Handler) ListAdmin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	page := httpx.PageFromRequest(r)
-	items, total, err := h.service.ListAdmin(r.Context(), f, page.PerPage, page.Offset())
+	items, total, err := h.service.ListAdmin(r.Context(), actor, f, page.PerPage, page.Offset())
 	if err != nil {
 		httpx.Error(w, r, err)
 		return
@@ -111,18 +131,9 @@ func (h *Handler) ListAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetAdmin(w http.ResponseWriter, r *http.Request) {
-	id, ok := bookingID(r)
-	if !ok {
-		httpx.Error(w, r, ErrBookingNotFound)
-		return
-	}
-
-	b, err := h.service.GetAdmin(r.Context(), id)
-	if err != nil {
-		httpx.Error(w, r, err)
-		return
-	}
-	httpx.JSON(w, r, http.StatusOK, h.toAdminResponse(b))
+	h.withBooking(w, r, func(actor Actor, id int64) (AdminBooking, error) {
+		return h.service.GetAdmin(r.Context(), actor, id)
+	})
 }
 
 func (h *Handler) Confirm(w http.ResponseWriter, r *http.Request) {
@@ -148,14 +159,52 @@ func (h *Handler) CancelAdmin(w http.ResponseWriter, r *http.Request) {
 	h.transition(w, r, StatusCancelled, req.Reason)
 }
 
+func (h *Handler) Reschedule(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		StartAt time.Time `json:"start_at"`
+	}
+	if err := httpx.DecodeJSON(w, r, &req); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	h.withBooking(w, r, func(actor Actor, id int64) (AdminBooking, error) {
+		return h.service.Reschedule(r.Context(), actor, id, req.StartAt)
+	})
+}
+
+func (h *Handler) SaveNote(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Content string `json:"content"`
+	}
+	if err := httpx.DecodeJSON(w, r, &req); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+	h.withBooking(w, r, func(actor Actor, id int64) (AdminBooking, error) {
+		return h.service.SaveNote(r.Context(), actor, id, req.Content)
+	})
+}
+
 func (h *Handler) transition(w http.ResponseWriter, r *http.Request, to, reason string) {
+	h.withBooking(w, r, func(actor Actor, id int64) (AdminBooking, error) {
+		return h.service.Transition(r.Context(), actor, id, to, reason)
+	})
+}
+
+func (h *Handler) withBooking(w http.ResponseWriter, r *http.Request, action func(actor Actor, id int64) (AdminBooking, error)) {
 	id, ok := bookingID(r)
 	if !ok {
 		httpx.Error(w, r, ErrBookingNotFound)
 		return
 	}
 
-	b, err := h.service.Transition(r.Context(), id, to, reason)
+	actor, err := h.actor(r)
+	if err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+
+	b, err := action(actor, id)
 	if err != nil {
 		httpx.Error(w, r, err)
 		return

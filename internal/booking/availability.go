@@ -24,6 +24,7 @@ type treatmentFinder interface {
 
 type therapistFinder interface {
 	Get(ctx context.Context, id int64) (therapist.Therapist, error)
+	GetByUserID(ctx context.Context, userID int64) (therapist.Therapist, error)
 	GetActiveBySlug(ctx context.Context, slug string) (therapist.Therapist, error)
 	ListActiveForTreatment(ctx context.Context, treatmentSlug string) ([]therapist.Therapist, error)
 	ListSchedules(ctx context.Context, therapistID int64) ([]therapist.Shift, error)
@@ -35,7 +36,7 @@ type settingsGetter interface {
 }
 
 type bookingRanges interface {
-	ListActiveRanges(ctx context.Context, therapistID int64, from, to time.Time) ([]Interval, error)
+	ListActiveRanges(ctx context.Context, therapistID int64, from, to time.Time, excludeID int64) ([]Interval, error)
 }
 
 type Availability struct {
@@ -64,7 +65,7 @@ type plan struct {
 }
 
 func (a *Availability) Slots(ctx context.Context, treatmentSlug, therapistSlug string, day time.Time) ([]time.Time, error) {
-	p, err := a.load(ctx, treatmentSlug, therapistSlug)
+	p, err := a.load(ctx, treatmentSlug, therapistSlug, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +73,7 @@ func (a *Availability) Slots(ctx context.Context, treatmentSlug, therapistSlug s
 }
 
 func (a *Availability) Dates(ctx context.Context, treatmentSlug, therapistSlug string, month time.Time) ([]time.Time, error) {
-	p, err := a.load(ctx, treatmentSlug, therapistSlug)
+	p, err := a.load(ctx, treatmentSlug, therapistSlug, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +87,8 @@ func (a *Availability) Dates(ctx context.Context, treatmentSlug, therapistSlug s
 	return dates, nil
 }
 
-func (a *Availability) check(ctx context.Context, treatmentSlug, therapistSlug string, start time.Time) (plan, error) {
-	p, err := a.load(ctx, treatmentSlug, therapistSlug)
+func (a *Availability) check(ctx context.Context, treatmentSlug, therapistSlug string, start time.Time, excludeID int64) (plan, error) {
+	p, err := a.load(ctx, treatmentSlug, therapistSlug, excludeID)
 	if err != nil {
 		return plan{}, err
 	}
@@ -100,7 +101,7 @@ func (a *Availability) check(ctx context.Context, treatmentSlug, therapistSlug s
 	return plan{}, ErrSlotUnavailable
 }
 
-func (a *Availability) load(ctx context.Context, treatmentSlug, therapistSlug string) (plan, error) {
+func (a *Availability) load(ctx context.Context, treatmentSlug, therapistSlug string, excludeID int64) (plan, error) {
 	tr, err := a.treatments.GetActiveBySlug(ctx, treatmentSlug)
 	if err != nil {
 		return plan{}, err
@@ -138,7 +139,7 @@ func (a *Availability) load(ctx context.Context, treatmentSlug, therapistSlug st
 	today := StartOfDay(now)
 	lastDay := today.AddDate(0, 0, int(st.MaxBookingDaysAhead))
 
-	busy, err := a.bookings.ListActiveRanges(ctx, th.ID, today, lastDay.AddDate(0, 0, 1))
+	busy, err := a.bookings.ListActiveRanges(ctx, th.ID, today, lastDay.AddDate(0, 0, 1), excludeID)
 	if err != nil {
 		return plan{}, err
 	}

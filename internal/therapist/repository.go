@@ -17,6 +17,7 @@ var (
 	errSlugTaken        = errors.New("therapist slug taken")
 	errUnknownTherapist = errors.New("unknown therapist id")
 	errInUse            = errors.New("therapist referenced by bookings")
+	errAccountExists    = errors.New("therapist already has an account")
 )
 
 type Repository struct {
@@ -131,6 +132,22 @@ func (r *Repository) ReplaceTreatmentTherapists(ctx context.Context, treatmentID
 	return tx.Commit(ctx)
 }
 
+func (r *Repository) GetByUserID(ctx context.Context, userID int64) (Therapist, error) {
+	row, err := r.q.GetTherapistByUserID(ctx, &userID)
+	return toTherapistResult(row, err)
+}
+
+func (r *Repository) SetUserID(ctx context.Context, id, userID int64) error {
+	n, err := r.q.SetTherapistUser(ctx, sqlc.SetTherapistUserParams{ID: id, UserID: &userID})
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return errAccountExists
+	}
+	return nil
+}
+
 func pgErrorCode(err error) string {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
@@ -166,6 +183,7 @@ func toTherapist(row sqlc.Therapist) Therapist {
 		Bio:       row.Bio,
 		PhotoURL:  row.PhotoUrl,
 		IsActive:  row.IsActive,
+		UserID:    row.UserID,
 		CreatedAt: row.CreatedAt,
 		UpdatedAt: row.UpdatedAt,
 	}

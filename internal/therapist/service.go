@@ -43,6 +43,8 @@ type store interface {
 	ListUpcomingTimeOff(ctx context.Context, therapistID int64) ([]TimeOff, error)
 	CreateTimeOff(ctx context.Context, therapistID int64, in TimeOffInput) (TimeOff, error)
 	DeleteTimeOff(ctx context.Context, therapistID, timeOffID int64) error
+	GetByUserID(ctx context.Context, userID int64) (Therapist, error)
+	SetUserID(ctx context.Context, id, userID int64) error
 }
 
 type treatmentFinder interface {
@@ -75,6 +77,11 @@ func (s *Service) GetActiveBySlug(ctx context.Context, slug string) (Therapist, 
 
 func (s *Service) Get(ctx context.Context, id int64) (Therapist, error) {
 	t, err := s.store.Get(ctx, id)
+	return t, mapNotFound(err)
+}
+
+func (s *Service) GetByUserID(ctx context.Context, userID int64) (Therapist, error) {
+	t, err := s.store.GetByUserID(ctx, userID)
 	return t, mapNotFound(err)
 }
 

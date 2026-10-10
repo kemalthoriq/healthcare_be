@@ -33,6 +33,13 @@ func (fakeTherapists) Get(ctx context.Context, id int64) (therapist.Therapist, e
 	return therapist.Therapist{ID: id, Slug: "dr-sari", Name: "dr. Sari"}, nil
 }
 
+func (fakeTherapists) GetByUserID(ctx context.Context, userID int64) (therapist.Therapist, error) {
+	if userID != 50 {
+		return therapist.Therapist{}, therapist.ErrNotFound
+	}
+	return therapist.Therapist{ID: 7, Slug: "dr-sari", Name: "dr. Sari"}, nil
+}
+
 func (fakeTherapists) GetActiveBySlug(ctx context.Context, slug string) (therapist.Therapist, error) {
 	switch slug {
 	case "dr-sari":
@@ -65,7 +72,7 @@ type fakeBookings struct {
 	busy []Interval
 }
 
-func (f fakeBookings) ListActiveRanges(ctx context.Context, therapistID int64, from, to time.Time) ([]Interval, error) {
+func (f fakeBookings) ListActiveRanges(ctx context.Context, therapistID int64, from, to time.Time, excludeID int64) ([]Interval, error) {
 	return f.busy, nil
 }
 

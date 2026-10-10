@@ -31,28 +31,30 @@ type treatmentTherapistsRequest struct {
 }
 
 type therapistResponse struct {
-	ID        int64     `json:"id"`
-	Name      string    `json:"name"`
-	Slug      string    `json:"slug"`
-	Title     string    `json:"title"`
-	Bio       string    `json:"bio"`
-	PhotoURL  string    `json:"photo_url"`
-	IsActive  bool      `json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         int64     `json:"id"`
+	Name       string    `json:"name"`
+	Slug       string    `json:"slug"`
+	Title      string    `json:"title"`
+	Bio        string    `json:"bio"`
+	PhotoURL   string    `json:"photo_url"`
+	IsActive   bool      `json:"is_active"`
+	HasAccount bool      `json:"has_account"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 func toResponse(t Therapist) therapistResponse {
 	return therapistResponse{
-		ID:        t.ID,
-		Name:      t.Name,
-		Slug:      t.Slug,
-		Title:     t.Title,
-		Bio:       t.Bio,
-		PhotoURL:  t.PhotoURL,
-		IsActive:  t.IsActive,
-		CreatedAt: t.CreatedAt,
-		UpdatedAt: t.UpdatedAt,
+		ID:         t.ID,
+		Name:       t.Name,
+		Slug:       t.Slug,
+		Title:      t.Title,
+		Bio:        t.Bio,
+		PhotoURL:   t.PhotoURL,
+		IsActive:   t.IsActive,
+		HasAccount: t.UserID != nil,
+		CreatedAt:  t.CreatedAt,
+		UpdatedAt:  t.UpdatedAt,
 	}
 }
 

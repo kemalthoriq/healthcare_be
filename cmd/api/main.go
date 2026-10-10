@@ -69,6 +69,7 @@ func run() error {
 
 	treatmentService := treatment.NewService(treatment.NewRepository(pool))
 	therapistService := therapist.NewService(therapist.NewRepository(pool), treatmentService)
+	accountService := therapist.NewAccountService(therapistService, authService)
 	settingService := setting.NewService(setting.NewRepository(pool))
 	bookingRepository := booking.NewRepository(pool)
 	availability := booking.NewAvailability(treatmentService, therapistService, settingService, bookingRepository, clinicLocation)
@@ -81,6 +82,7 @@ func run() error {
 		auth:           auth.NewHandler(authService, cfg.IsProduction()),
 		treatment:      treatment.NewHandler(treatmentService),
 		therapist:      therapist.NewHandler(therapistService),
+		account:        therapist.NewAccountHandler(accountService),
 		setting:        setting.NewHandler(settingService),
 		booking:        booking.NewHandler(availability, bookingService, clinicLocation),
 	})

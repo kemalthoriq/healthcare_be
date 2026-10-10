@@ -10,6 +10,7 @@ type Therapist struct {
 	Bio       string
 	PhotoURL  string
 	IsActive  bool
+	UserID    *int64
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

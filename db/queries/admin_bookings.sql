@@ -21,9 +21,11 @@ WHERE (sqlc.narg(status)::text IS NULL OR b.status = sqlc.narg(status)::text)
 -- name: GetAdminBooking :one
 SELECT b.id, b.code, b.treatment_id, b.therapist_id, b.patient_name, b.start_at, b.end_at,
        b.status, b.price, b.patient_note, b.cancel_reason, b.confirmed_at, b.cancelled_at,
-       b.completed_at, b.created_at, p.phone AS patient_phone, p.email AS patient_email
+       b.completed_at, b.created_at, p.phone AS patient_phone, p.email AS patient_email,
+       COALESCE(n.content, '') AS treatment_note
 FROM bookings b
 JOIN patients p ON p.id = b.patient_id
+LEFT JOIN treatment_notes n ON n.booking_id = b.id
 WHERE b.id = $1;
 
 -- name: TransitionBooking :one
@@ -36,3 +38,20 @@ SET status = sqlc.arg(to_status)::text,
     updated_at = now()
 WHERE id = sqlc.arg(id) AND status = sqlc.arg(from_status)::text
 RETURNING id;
+
+-- name: RescheduleBooking :one
+UPDATE bookings
+SET start_at = $2,
+    end_at = $3,
+    blocked_until = $4,
+    updated_at = now()
+WHERE id = $1 AND status IN ('pending', 'confirmed')
+RETURNING id;
+
+-- name: UpsertTreatmentNote :exec
+INSERT INTO treatment_notes (booking_id, author_id, content)
+VALUES ($1, $2, $3)
+ON CONFLICT (booking_id) DO UPDATE
+SET content = EXCLUDED.content,
+    author_id = EXCLUDED.author_id,
+    updated_at = now();

@@ -27,7 +27,7 @@ func (q *Queries) AddTreatmentTherapists(ctx context.Context, arg AddTreatmentTh
 const createTherapist = `-- name: CreateTherapist :one
 INSERT INTO therapists (name, slug, title, bio, photo_url, is_active)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, name, slug, title, bio, photo_url, is_active, created_at, updated_at
+RETURNING id, name, slug, title, bio, photo_url, is_active, created_at, updated_at, user_id
 `
 
 type CreateTherapistParams struct {
@@ -59,6 +59,7 @@ func (q *Queries) CreateTherapist(ctx context.Context, arg CreateTherapistParams
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
@@ -87,7 +88,7 @@ func (q *Queries) DeleteTreatmentTherapists(ctx context.Context, treatmentID int
 }
 
 const getActiveTherapistBySlug = `-- name: GetActiveTherapistBySlug :one
-SELECT id, name, slug, title, bio, photo_url, is_active, created_at, updated_at FROM therapists
+SELECT id, name, slug, title, bio, photo_url, is_active, created_at, updated_at, user_id FROM therapists
 WHERE slug = $1 AND is_active
 `
 
@@ -104,12 +105,13 @@ func (q *Queries) GetActiveTherapistBySlug(ctx context.Context, slug string) (Th
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
 
 const getTherapist = `-- name: GetTherapist :one
-SELECT id, name, slug, title, bio, photo_url, is_active, created_at, updated_at FROM therapists
+SELECT id, name, slug, title, bio, photo_url, is_active, created_at, updated_at, user_id FROM therapists
 WHERE id = $1
 `
 
@@ -126,12 +128,36 @@ func (q *Queries) GetTherapist(ctx context.Context, id int64) (Therapist, error)
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const getTherapistByUserID = `-- name: GetTherapistByUserID :one
+SELECT id, name, slug, title, bio, photo_url, is_active, created_at, updated_at, user_id FROM therapists
+WHERE user_id = $1
+`
+
+func (q *Queries) GetTherapistByUserID(ctx context.Context, userID *int64) (Therapist, error) {
+	row := q.db.QueryRow(ctx, getTherapistByUserID, userID)
+	var i Therapist
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.Title,
+		&i.Bio,
+		&i.PhotoUrl,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }
 
 const listActiveTherapists = `-- name: ListActiveTherapists :many
-SELECT id, name, slug, title, bio, photo_url, is_active, created_at, updated_at FROM therapists
+SELECT id, name, slug, title, bio, photo_url, is_active, created_at, updated_at, user_id FROM therapists
 WHERE is_active
 ORDER BY name
 `
@@ -155,6 +181,7 @@ func (q *Queries) ListActiveTherapists(ctx context.Context) ([]Therapist, error)
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -167,7 +194,7 @@ func (q *Queries) ListActiveTherapists(ctx context.Context) ([]Therapist, error)
 }
 
 const listTherapists = `-- name: ListTherapists :many
-SELECT id, name, slug, title, bio, photo_url, is_active, created_at, updated_at FROM therapists
+SELECT id, name, slug, title, bio, photo_url, is_active, created_at, updated_at, user_id FROM therapists
 ORDER BY name
 `
 
@@ -190,6 +217,7 @@ func (q *Queries) ListTherapists(ctx context.Context) ([]Therapist, error) {
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -202,7 +230,7 @@ func (q *Queries) ListTherapists(ctx context.Context) ([]Therapist, error) {
 }
 
 const listTherapistsByTreatment = `-- name: ListTherapistsByTreatment :many
-SELECT th.id, th.name, th.slug, th.title, th.bio, th.photo_url, th.is_active, th.created_at, th.updated_at
+SELECT th.id, th.name, th.slug, th.title, th.bio, th.photo_url, th.is_active, th.created_at, th.updated_at, th.user_id
 FROM therapists th
 JOIN treatment_therapists tt ON tt.therapist_id = th.id
 WHERE tt.treatment_id = $1
@@ -228,6 +256,7 @@ func (q *Queries) ListTherapistsByTreatment(ctx context.Context, treatmentID int
 			&i.IsActive,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.UserID,
 		); err != nil {
 			return nil, err
 		}
@@ -239,6 +268,26 @@ func (q *Queries) ListTherapistsByTreatment(ctx context.Context, treatmentID int
 	return items, nil
 }
 
+const setTherapistUser = `-- name: SetTherapistUser :execrows
+UPDATE therapists
+SET user_id = $2,
+    updated_at = now()
+WHERE id = $1 AND user_id IS NULL
+`
+
+type SetTherapistUserParams struct {
+	ID     int64
+	UserID *int64
+}
+
+func (q *Queries) SetTherapistUser(ctx context.Context, arg SetTherapistUserParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setTherapistUser, arg.ID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateTherapist = `-- name: UpdateTherapist :one
 UPDATE therapists
 SET name = $2,
@@ -248,7 +297,7 @@ SET name = $2,
     is_active = $6,
     updated_at = now()
 WHERE id = $1
-RETURNING id, name, slug, title, bio, photo_url, is_active, created_at, updated_at
+RETURNING id, name, slug, title, bio, photo_url, is_active, created_at, updated_at, user_id
 `
 
 type UpdateTherapistParams struct {
@@ -280,6 +329,7 @@ func (q *Queries) UpdateTherapist(ctx context.Context, arg UpdateTherapistParams
 		&i.IsActive,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.UserID,
 	)
 	return i, err
 }

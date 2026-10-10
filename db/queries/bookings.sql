@@ -21,7 +21,9 @@ WHERE therapist_id = $1
   AND status IN ('pending', 'confirmed')
   AND blocked_until > sqlc.arg(range_start)
   AND start_at < sqlc.arg(range_end)
+  AND id <> sqlc.arg(exclude_id)
 ORDER BY start_at;
+
 -- name: GetBookingByCode :one
 SELECT * FROM bookings
 WHERE code = $1;
