@@ -16,13 +16,16 @@ type Config struct {
 	AppEnv          string
 	Port            int
 	ShutdownTimeout time.Duration
+	DatabaseURL     string
+	DBMaxConns      int32
 }
 
 func Load() (Config, error) {
 	var errs []error
 
 	cfg := Config{
-		AppEnv: getEnv("APP_ENV", EnvDevelopment),
+		AppEnv:      getEnv("APP_ENV", EnvDevelopment),
+		DatabaseURL: getEnv("DATABASE_URL", ""),
 	}
 	if cfg.AppEnv != EnvDevelopment && cfg.AppEnv != EnvProduction {
 		errs = append(errs, errors.New("APP_ENV must be either development or production"))
@@ -39,6 +42,16 @@ func Load() (Config, error) {
 		errs = append(errs, errors.New("SHUTDOWN_TIMEOUT must be a positive duration, e.g. 10s"))
 	}
 	cfg.ShutdownTimeout = timeout
+
+	if cfg.DatabaseURL == "" {
+		errs = append(errs, errors.New("DATABASE_URL is required"))
+	}
+
+	maxConns, err := strconv.ParseInt(getEnv("DB_MAX_CONNS", "5"), 10, 32)
+	if err != nil || maxConns < 1 || maxConns > 50 {
+		errs = append(errs, errors.New("DB_MAX_CONNS must be a number between 1 and 50"))
+	}
+	cfg.DBMaxConns = int32(maxConns)
 
 	return cfg, errors.Join(errs...)
 }

@@ -11,7 +11,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kemalthoriq/healthcare_be/db/migrations"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/config"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/database"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/logger"
 )
 
@@ -31,18 +33,29 @@ func run() error {
 	log := logger.New(cfg.IsProduction())
 	slog.SetDefault(log)
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	pool, err := database.Connect(ctx, cfg.DatabaseURL, cfg.DBMaxConns)
+	if err != nil {
+		return fmt.Errorf("connect database: %w", err)
+	}
+	defer pool.Close()
+	log.Info("database connected", "max_conns", cfg.DBMaxConns)
+
+	if err := database.Migrate(ctx, pool, migrations.FS, log); err != nil {
+		return fmt.Errorf("migrate database: %w", err)
+	}
+
 	srv := &http.Server{
 		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           newRouter(),
+		Handler:           newRouter(pool),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      15 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelError),
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	serverErr := make(chan error, 1)
 	go func() {
