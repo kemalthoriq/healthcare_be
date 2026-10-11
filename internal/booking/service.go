@@ -38,10 +38,11 @@ type store interface {
 type Service struct {
 	availability *Availability
 	store        store
+	notifier     notifier
 }
 
-func NewService(availability *Availability, store store) *Service {
-	return &Service{availability: availability, store: store}
+func NewService(availability *Availability, store store, notifier notifier) *Service {
+	return &Service{availability: availability, store: store, notifier: notifier}
 }
 
 type CreateInput struct {
@@ -100,6 +101,16 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Created, error) {
 		case err != nil:
 			return Created{}, err
 		}
+		s.notify(ctx, Event{
+			Kind:          EventCreated,
+			Code:          b.Code,
+			PatientName:   nb.PatientName,
+			Email:         nb.Email,
+			TreatmentName: p.treatment.Name,
+			TherapistName: p.therapist.Name,
+			StartAt:       b.StartAt,
+			EndAt:         b.EndAt,
+		})
 		return Created{Booking: b, Treatment: p.treatment, Therapist: p.therapist}, nil
 	}
 

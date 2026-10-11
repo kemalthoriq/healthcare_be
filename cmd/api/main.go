@@ -16,8 +16,10 @@ import (
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/booking"
 	"github.com/kemalthoriq/healthcare_be/internal/invoice"
+	"github.com/kemalthoriq/healthcare_be/internal/notify"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/config"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/database"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/email"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/logger"
 	"github.com/kemalthoriq/healthcare_be/internal/promo"
 	"github.com/kemalthoriq/healthcare_be/internal/setting"
@@ -75,7 +77,23 @@ func run() error {
 	accountService := therapist.NewAccountService(therapistService, authService)
 	settingService := setting.NewService(setting.NewRepository(pool))
 	availability := booking.NewAvailability(treatmentService, therapistService, settingService, bookingRepository, clinicLocation)
-	bookingService := booking.NewService(availability, bookingRepository)
+	var sender email.Sender
+	if cfg.EmailEnabled {
+		smtpSender, err := email.NewSMTPSender(email.Config{
+			Host:     cfg.SMTPHost,
+			Port:     cfg.SMTPPort,
+			User:     cfg.SMTPUser,
+			Password: cfg.SMTPPassword,
+			From:     cfg.SMTPFrom,
+		})
+		if err != nil {
+			return fmt.Errorf("create email sender: %w", err)
+		}
+		sender = smtpSender
+	}
+	mailer := email.NewQueue(sender, log)
+	notifier := notify.New(mailer, settingService, clinicLocation, cfg.FrontendOrigin, log)
+	bookingService := booking.NewService(availability, bookingRepository, notifier)
 	invoiceService := invoice.NewService(invoice.NewRepository(pool), bookingService, clinicLocation)
 
 	router := newRouter(routerDeps{
@@ -126,6 +144,9 @@ func run() error {
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown server: %w", err)
+	}
+	if err := mailer.Close(shutdownCtx); err != nil {
+		log.Warn("email queue not fully sent before shutdown", "err", err)
 	}
 
 	log.Info("server stopped")

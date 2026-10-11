@@ -47,7 +47,7 @@ func TestIntegration_ExclusionConstraintPreventsDoubleBooking(t *testing.T) {
 	treatments := treatment.NewService(treatment.NewRepository(pool), repo)
 	therapists := therapist.NewService(therapist.NewRepository(pool), treatments, repo)
 	settings := setting.NewService(setting.NewRepository(pool))
-	svc := NewService(NewAvailability(treatments, therapists, settings, repo, loc), repo)
+	svc := NewService(NewAvailability(treatments, therapists, settings, repo, loc), repo, &fakeNotifier{})
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 36)
 	tr, err := treatments.Create(ctx, treatment.Input{Name: "Integrasi " + suffix, Price: 100000, DurationMinutes: 60, IsActive: true})

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -19,6 +20,12 @@ func clearEnv(t *testing.T) {
 	t.Setenv("SEED_ADMIN_PASSWORD", "")
 	t.Setenv("FRONTEND_ORIGIN", "")
 	t.Setenv("SESSION_TTL", "")
+	t.Setenv("EMAIL_ENABLED", "")
+	t.Setenv("SMTP_HOST", "")
+	t.Setenv("SMTP_PORT", "")
+	t.Setenv("SMTP_USER", "")
+	t.Setenv("SMTP_PASSWORD", "")
+	t.Setenv("SMTP_FROM", "")
 }
 
 func setRequiredEnv(t *testing.T) {
@@ -172,5 +179,31 @@ func TestLoad_ReportsAllErrorsAtOnce(t *testing.T) {
 	}
 	if got := len(joined.Unwrap()); got != 4 {
 		t.Fatalf("expected 4 errors, got %d: %v", got, err)
+	}
+}
+
+func TestLoad_Email(t *testing.T) {
+	setRequiredEnv(t)
+	cfg, err := Load()
+	if err != nil || cfg.EmailEnabled || cfg.SMTPPort != 587 {
+		t.Fatalf("defaults: enabled = %v, port = %d, err = %v", cfg.EmailEnabled, cfg.SMTPPort, err)
+	}
+
+	t.Setenv("EMAIL_ENABLED", "true")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "SMTP_HOST") || !strings.Contains(err.Error(), "SMTP_FROM") {
+		t.Fatalf("enabled without host/from: err = %v", err)
+	}
+
+	t.Setenv("SMTP_HOST", "localhost")
+	t.Setenv("SMTP_PORT", "1025")
+	t.Setenv("SMTP_FROM", "Lumière Clinic <noreply@lumiere.test>")
+	cfg, err = Load()
+	if err != nil || !cfg.EmailEnabled || cfg.SMTPPort != 1025 || cfg.SMTPUser != "" {
+		t.Fatalf("mailpit config: %+v, err = %v", cfg, err)
+	}
+
+	t.Setenv("EMAIL_ENABLED", "ya")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "EMAIL_ENABLED") {
+		t.Errorf("invalid bool: err = %v", err)
 	}
 }

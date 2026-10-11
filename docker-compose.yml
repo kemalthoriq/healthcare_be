@@ -16,5 +16,12 @@ services:
       timeout: 5s
       retries: 10
 
+  mailpit:
+    image: axllent/mailpit:v1.29.0
+    container_name: healthcare-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   postgres-data:
