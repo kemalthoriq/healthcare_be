@@ -5,7 +5,7 @@ endif
 
 GOOSE := go run github.com/pressly/goose/v3/cmd/goose@v3.28.0
 
-.PHONY: run build test test-integration vet fmt check db-up db-down db-reset migration sqlc
+.PHONY: run build test test-integration vet lint fmt check db-up db-down db-reset migration sqlc docker-build
 
 run:
 	go run ./cmd/api
@@ -22,6 +22,9 @@ test-integration:
 
 vet:
 	go vet ./...
+
+lint:
+	docker run --rm -v "$(CURDIR):/app" -w /app golangci/golangci-lint:v2.14.0 golangci-lint run ./...
 
 fmt:
 	gofmt -w .
@@ -43,3 +46,6 @@ migration:
 
 sqlc:
 	docker run --rm -v "$(CURDIR):/src" -w /src sqlc/sqlc:1.31.1 generate
+
+docker-build:
+	docker build -t healthcare-api .

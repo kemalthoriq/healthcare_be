@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/clientip"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/httpx"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/logger"
 )
@@ -72,6 +73,7 @@ func Logger(log *slog.Logger) Middleware {
 				"status", rec.Status(),
 				"bytes", rec.bytes,
 				"duration", time.Since(start),
+				"ip", clientip.FromContext(r.Context()),
 			)
 		})
 	}
