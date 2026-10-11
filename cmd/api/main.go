@@ -19,6 +19,7 @@ import (
 	"github.com/kemalthoriq/healthcare_be/internal/platform/config"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/database"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/logger"
+	"github.com/kemalthoriq/healthcare_be/internal/promo"
 	"github.com/kemalthoriq/healthcare_be/internal/setting"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
@@ -89,6 +90,7 @@ func run() error {
 		booking:        booking.NewHandler(availability, bookingService, clinicLocation),
 		patient:        booking.NewPatientHandler(booking.NewPatientService(bookingRepository, bookingService), clinicLocation),
 		invoice:        invoice.NewHandler(invoiceService, clinicLocation),
+		promo:          promo.NewHandler(promo.NewService(promo.NewRepository(pool), clinicLocation)),
 	})
 
 	srv := &http.Server{
