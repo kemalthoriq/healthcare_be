@@ -6,6 +6,7 @@ import (
 
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/booking"
+	"github.com/kemalthoriq/healthcare_be/internal/invoice"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/health"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/middleware"
 	"github.com/kemalthoriq/healthcare_be/internal/setting"
@@ -24,6 +25,7 @@ type routerDeps struct {
 	setting        *setting.Handler
 	booking        *booking.Handler
 	patient        *booking.PatientHandler
+	invoice        *invoice.Handler
 }
 
 func newRouter(d routerDeps) http.Handler {
@@ -83,6 +85,12 @@ func newRouter(d routerDeps) http.Handler {
 
 	api.Handle("GET /api/v1/admin/patients", admin(d.patient.List))
 	api.Handle("GET /api/v1/admin/patients/{id}", admin(d.patient.Get))
+
+	api.Handle("POST /api/v1/admin/bookings/{id}/invoice", admin(d.invoice.Create))
+	api.Handle("GET /api/v1/admin/invoices", admin(d.invoice.List))
+	api.Handle("GET /api/v1/admin/invoices/{id}", admin(d.invoice.Get))
+	api.Handle("PATCH /api/v1/admin/invoices/{id}", admin(d.invoice.Update))
+	api.Handle("POST /api/v1/admin/invoices/{id}/pay", admin(d.invoice.Pay))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)
