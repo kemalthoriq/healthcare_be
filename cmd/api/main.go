@@ -15,6 +15,7 @@ import (
 	"github.com/kemalthoriq/healthcare_be/db/migrations"
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/booking"
+	"github.com/kemalthoriq/healthcare_be/internal/invoice"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/config"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/database"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/logger"
@@ -74,6 +75,7 @@ func run() error {
 	settingService := setting.NewService(setting.NewRepository(pool))
 	availability := booking.NewAvailability(treatmentService, therapistService, settingService, bookingRepository, clinicLocation)
 	bookingService := booking.NewService(availability, bookingRepository)
+	invoiceService := invoice.NewService(invoice.NewRepository(pool), bookingService, clinicLocation)
 
 	router := newRouter(routerDeps{
 		log:            log,
@@ -86,6 +88,7 @@ func run() error {
 		setting:        setting.NewHandler(settingService),
 		booking:        booking.NewHandler(availability, bookingService, clinicLocation),
 		patient:        booking.NewPatientHandler(booking.NewPatientService(bookingRepository, bookingService), clinicLocation),
+		invoice:        invoice.NewHandler(invoiceService, clinicLocation),
 	})
 
 	srv := &http.Server{

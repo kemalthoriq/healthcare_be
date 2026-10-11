@@ -11,6 +11,7 @@ import (
 
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/booking"
+	"github.com/kemalthoriq/healthcare_be/internal/invoice"
 	"github.com/kemalthoriq/healthcare_be/internal/setting"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
@@ -36,6 +37,7 @@ func newTestRouter() http.Handler {
 		setting:        setting.NewHandler(nil),
 		booking:        booking.NewHandler(nil, nil, time.UTC),
 		patient:        booking.NewPatientHandler(nil, time.UTC),
+		invoice:        invoice.NewHandler(nil, time.UTC),
 	})
 }
 
@@ -127,6 +129,11 @@ func TestRouter_ProtectedRoutes(t *testing.T) {
 		{"therapist account requires session", http.MethodPost, "/api/v1/admin/therapists/1/account", testOrigin, http.StatusUnauthorized},
 		{"patient list requires session", http.MethodGet, "/api/v1/admin/patients", "", http.StatusUnauthorized},
 		{"patient detail requires session", http.MethodGet, "/api/v1/admin/patients/1", "", http.StatusUnauthorized},
+		{"create invoice rejects foreign origin", http.MethodPost, "/api/v1/admin/bookings/1/invoice", "https://evil.example", http.StatusForbidden},
+		{"create invoice requires session", http.MethodPost, "/api/v1/admin/bookings/1/invoice", testOrigin, http.StatusUnauthorized},
+		{"invoice list requires session", http.MethodGet, "/api/v1/admin/invoices", "", http.StatusUnauthorized},
+		{"invoice update requires session", http.MethodPatch, "/api/v1/admin/invoices/1", testOrigin, http.StatusUnauthorized},
+		{"invoice pay requires session", http.MethodPost, "/api/v1/admin/invoices/1/pay", testOrigin, http.StatusUnauthorized},
 	}
 
 	for _, tt := range tests {

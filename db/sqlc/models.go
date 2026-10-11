@@ -40,6 +40,26 @@ type ClinicSetting struct {
 	UpdatedAt             time.Time
 }
 
+type Invoice struct {
+	ID            int64
+	Number        string
+	BookingID     int64
+	Subtotal      int64
+	Discount      int64
+	Total         int64
+	Status        string
+	PaymentMethod string
+	PaidAt        *time.Time
+	CreatedBy     int64
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type InvoiceCounter struct {
+	Period     string
+	LastNumber int32
+}
+
 type Patient struct {
 	ID        int64
 	Name      string
