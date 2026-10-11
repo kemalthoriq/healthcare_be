@@ -150,7 +150,17 @@ func (s *Service) Transition(ctx context.Context, actor Actor, id int64, to, rea
 		return AdminBooking{}, err
 	}
 
-	return s.GetAdmin(ctx, actor, id)
+	updated, err := s.GetAdmin(ctx, actor, id)
+	if err != nil {
+		return AdminBooking{}, err
+	}
+	switch to {
+	case StatusConfirmed:
+		s.notify(ctx, eventFor(EventConfirmed, updated))
+	case StatusCancelled:
+		s.notify(ctx, eventFor(EventCancelled, updated))
+	}
+	return updated, nil
 }
 
 func (s *Service) Reschedule(ctx context.Context, actor Actor, id int64, startAt time.Time) (AdminBooking, error) {
@@ -191,7 +201,14 @@ func (s *Service) Reschedule(ctx context.Context, actor Actor, id int64, startAt
 		return AdminBooking{}, err
 	}
 
-	return s.GetAdmin(ctx, actor, id)
+	updated, err := s.GetAdmin(ctx, actor, id)
+	if err != nil {
+		return AdminBooking{}, err
+	}
+	e := eventFor(EventRescheduled, updated)
+	e.PreviousStartAt = current.StartAt
+	s.notify(ctx, e)
+	return updated, nil
 }
 
 func (s *Service) SaveNote(ctx context.Context, actor Actor, id int64, content string) (AdminBooking, error) {

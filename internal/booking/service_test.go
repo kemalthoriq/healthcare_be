@@ -42,8 +42,20 @@ func validCreateInput() CreateInput {
 	}
 }
 
+type fakeNotifier struct {
+	events []Event
+}
+
+func (f *fakeNotifier) Notify(ctx context.Context, e Event) {
+	f.events = append(f.events, e)
+}
+
 func newTestService(store *fakeStore) *Service {
-	return NewService(newTestAvailability(fakeTherapists{}, nil), store)
+	return NewService(newTestAvailability(fakeTherapists{}, nil), store, &fakeNotifier{})
+}
+
+func sentEvents(svc *Service) []Event {
+	return svc.notifier.(*fakeNotifier).events
 }
 
 func TestCreate_Success(t *testing.T) {

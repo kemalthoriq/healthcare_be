@@ -71,6 +71,12 @@ func (s *Service) CancelByCode(ctx context.Context, code, reason string) (Detail
 	if err != nil {
 		return Detail{}, err
 	}
+
+	if ab, err := s.GetAdmin(ctx, Actor{}, b.ID); err == nil {
+		e := eventFor(EventCancelled, ab)
+		e.CancelledByPatient = true
+		s.notify(ctx, e)
+	}
 	return s.detail(ctx, b)
 }
 

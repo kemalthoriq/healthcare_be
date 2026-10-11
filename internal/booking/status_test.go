@@ -115,7 +115,7 @@ func (racingStore) CancelByCode(ctx context.Context, code, reason string, minSta
 }
 
 func TestCancelByCode_StatusChangedConcurrently(t *testing.T) {
-	svc := NewService(newTestAvailability(fakeTherapists{}, nil), racingStore{storeWith(farBooking)})
+	svc := NewService(newTestAvailability(fakeTherapists{}, nil), racingStore{storeWith(farBooking)}, &fakeNotifier{})
 
 	if _, err := svc.CancelByCode(context.Background(), farBooking.Code, ""); !errors.Is(err, ErrInvalidTransition) {
 		t.Errorf("err = %v, want ErrInvalidTransition when the update matches no row", err)

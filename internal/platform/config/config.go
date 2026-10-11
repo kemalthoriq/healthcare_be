@@ -25,6 +25,12 @@ type Config struct {
 	SeedAdminPassword string
 	FrontendOrigin    string
 	SessionTTL        time.Duration
+	EmailEnabled      bool
+	SMTPHost          string
+	SMTPPort          int
+	SMTPUser          string
+	SMTPPassword      string
+	SMTPFrom          string
 }
 
 func Load() (Config, error) {
@@ -37,6 +43,10 @@ func Load() (Config, error) {
 		SeedAdminEmail:    getEnv("SEED_ADMIN_EMAIL", ""),
 		SeedAdminPassword: getEnv("SEED_ADMIN_PASSWORD", ""),
 		FrontendOrigin:    getEnv("FRONTEND_ORIGIN", "http://localhost:3000"),
+		SMTPHost:          getEnv("SMTP_HOST", ""),
+		SMTPUser:          getEnv("SMTP_USER", ""),
+		SMTPPassword:      getEnv("SMTP_PASSWORD", ""),
+		SMTPFrom:          getEnv("SMTP_FROM", ""),
 	}
 	if cfg.AppEnv != EnvDevelopment && cfg.AppEnv != EnvProduction {
 		errs = append(errs, errors.New("APP_ENV must be either development or production"))
@@ -82,6 +92,27 @@ func Load() (Config, error) {
 		errs = append(errs, errors.New("SESSION_TTL must be a positive duration, e.g. 168h"))
 	}
 	cfg.SessionTTL = sessionTTL
+
+	emailEnabled, err := strconv.ParseBool(getEnv("EMAIL_ENABLED", "false"))
+	if err != nil {
+		errs = append(errs, errors.New("EMAIL_ENABLED must be true or false"))
+	}
+	cfg.EmailEnabled = emailEnabled
+
+	smtpPort, err := strconv.Atoi(getEnv("SMTP_PORT", "587"))
+	if err != nil || smtpPort < 1 || smtpPort > 65535 {
+		errs = append(errs, errors.New("SMTP_PORT must be a number between 1 and 65535"))
+	}
+	cfg.SMTPPort = smtpPort
+
+	if cfg.EmailEnabled {
+		if cfg.SMTPHost == "" {
+			errs = append(errs, errors.New("SMTP_HOST is required when EMAIL_ENABLED=true"))
+		}
+		if _, err := mail.ParseAddress(cfg.SMTPFrom); err != nil {
+			errs = append(errs, errors.New("SMTP_FROM must be an address like \"Lumière Clinic <noreply@example.com>\" when EMAIL_ENABLED=true"))
+		}
+	}
 
 	return cfg, errors.Join(errs...)
 }
