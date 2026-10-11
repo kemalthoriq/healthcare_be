@@ -11,6 +11,7 @@ import (
 
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/booking"
+	"github.com/kemalthoriq/healthcare_be/internal/dashboard"
 	"github.com/kemalthoriq/healthcare_be/internal/invoice"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/ratelimit"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/storage"
@@ -44,6 +45,7 @@ func newTestRouter() http.Handler {
 		invoice:        invoice.NewHandler(nil, time.UTC),
 		promo:          promo.NewHandler(nil),
 		upload:         storage.NewHandler(nil),
+		dashboard:      dashboard.NewHandler(nil, time.UTC),
 	})
 }
 
@@ -148,6 +150,7 @@ func TestRouter_ProtectedRoutes(t *testing.T) {
 		{"admin promo delete requires session", http.MethodDelete, "/api/v1/admin/promos/1", testOrigin, http.StatusUnauthorized},
 		{"upload sign rejects foreign origin", http.MethodPost, "/api/v1/admin/uploads/sign", "https://evil.example", http.StatusForbidden},
 		{"upload sign requires session", http.MethodPost, "/api/v1/admin/uploads/sign", testOrigin, http.StatusUnauthorized},
+		{"dashboard requires session", http.MethodGet, "/api/v1/admin/dashboard", "", http.StatusUnauthorized},
 	}
 
 	for _, tt := range tests {

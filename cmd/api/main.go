@@ -15,6 +15,7 @@ import (
 	"github.com/kemalthoriq/healthcare_be/db/migrations"
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/booking"
+	"github.com/kemalthoriq/healthcare_be/internal/dashboard"
 	"github.com/kemalthoriq/healthcare_be/internal/invoice"
 	"github.com/kemalthoriq/healthcare_be/internal/notify"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/captcha"
@@ -125,6 +126,7 @@ func run() error {
 		invoice:          invoice.NewHandler(invoiceService, clinicLocation),
 		promo:            promo.NewHandler(promo.NewService(promo.NewRepository(pool), cloudinary, clinicLocation)),
 		upload:           storage.NewHandler(cloudinary),
+		dashboard:        dashboard.NewHandler(dashboard.NewService(dashboard.NewRepository(pool), clinicLocation), clinicLocation),
 	})
 
 	srv := &http.Server{

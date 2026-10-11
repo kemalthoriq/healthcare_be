@@ -7,6 +7,7 @@ import (
 
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/booking"
+	"github.com/kemalthoriq/healthcare_be/internal/dashboard"
 	"github.com/kemalthoriq/healthcare_be/internal/invoice"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/clientip"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/health"
@@ -49,6 +50,7 @@ type routerDeps struct {
 	invoice          *invoice.Handler
 	promo            *promo.Handler
 	upload           *storage.Handler
+	dashboard        *dashboard.Handler
 }
 
 func newRouter(d routerDeps) http.Handler {
@@ -127,6 +129,8 @@ func newRouter(d routerDeps) http.Handler {
 	api.Handle("DELETE /api/v1/admin/promos/{id}", admin(d.promo.Delete))
 
 	api.Handle("POST /api/v1/admin/uploads/sign", admin(d.upload.Sign))
+
+	api.Handle("GET /api/v1/admin/dashboard", admin(d.dashboard.Get))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)
