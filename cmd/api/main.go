@@ -85,6 +85,7 @@ func run() error {
 		account:        therapist.NewAccountHandler(accountService),
 		setting:        setting.NewHandler(settingService),
 		booking:        booking.NewHandler(availability, bookingService, clinicLocation),
+		patient:        booking.NewPatientHandler(booking.NewPatientService(bookingRepository, bookingService), clinicLocation),
 	})
 
 	srv := &http.Server{

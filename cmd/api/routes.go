@@ -23,6 +23,7 @@ type routerDeps struct {
 	account        *therapist.AccountHandler
 	setting        *setting.Handler
 	booking        *booking.Handler
+	patient        *booking.PatientHandler
 }
 
 func newRouter(d routerDeps) http.Handler {
@@ -79,6 +80,9 @@ func newRouter(d routerDeps) http.Handler {
 	api.Handle("POST /api/v1/admin/bookings/{id}/cancel", admin(d.booking.CancelAdmin))
 	api.Handle("POST /api/v1/admin/bookings/{id}/no-show", admin(d.booking.NoShow))
 	api.Handle("POST /api/v1/admin/bookings/{id}/reschedule", admin(d.booking.Reschedule))
+
+	api.Handle("GET /api/v1/admin/patients", admin(d.patient.List))
+	api.Handle("GET /api/v1/admin/patients/{id}", admin(d.patient.Get))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)
