@@ -9,6 +9,7 @@ import (
 	"github.com/kemalthoriq/healthcare_be/internal/invoice"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/health"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/middleware"
+	"github.com/kemalthoriq/healthcare_be/internal/promo"
 	"github.com/kemalthoriq/healthcare_be/internal/setting"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
@@ -26,6 +27,7 @@ type routerDeps struct {
 	booking        *booking.Handler
 	patient        *booking.PatientHandler
 	invoice        *invoice.Handler
+	promo          *promo.Handler
 }
 
 func newRouter(d routerDeps) http.Handler {
@@ -66,8 +68,11 @@ func newRouter(d routerDeps) http.Handler {
 	api.Handle("DELETE /api/v1/admin/therapists/{id}/time-off/{timeOffId}", admin(d.therapist.DeleteTimeOff))
 	api.Handle("POST /api/v1/admin/therapists/{id}/account", admin(d.account.Create))
 
+	api.HandleFunc("GET /api/v1/clinic", d.setting.GetClinicPublic)
 	api.Handle("GET /api/v1/admin/settings", admin(d.setting.Get))
 	api.Handle("PUT /api/v1/admin/settings", admin(d.setting.Update))
+	api.Handle("GET /api/v1/admin/clinic", admin(d.setting.GetClinic))
+	api.Handle("PUT /api/v1/admin/clinic", admin(d.setting.UpdateClinic))
 
 	api.HandleFunc("GET /api/v1/availability/slots", d.booking.Slots)
 	api.HandleFunc("GET /api/v1/availability/dates", d.booking.Dates)
@@ -91,6 +96,14 @@ func newRouter(d routerDeps) http.Handler {
 	api.Handle("GET /api/v1/admin/invoices/{id}", admin(d.invoice.Get))
 	api.Handle("PATCH /api/v1/admin/invoices/{id}", admin(d.invoice.Update))
 	api.Handle("POST /api/v1/admin/invoices/{id}/pay", admin(d.invoice.Pay))
+
+	api.HandleFunc("GET /api/v1/promos", d.promo.ListPublic)
+	api.HandleFunc("GET /api/v1/promos/{slug}", d.promo.GetPublic)
+	api.Handle("GET /api/v1/admin/promos", admin(d.promo.List))
+	api.Handle("POST /api/v1/admin/promos", admin(d.promo.Create))
+	api.Handle("GET /api/v1/admin/promos/{id}", admin(d.promo.Get))
+	api.Handle("PUT /api/v1/admin/promos/{id}", admin(d.promo.Update))
+	api.Handle("DELETE /api/v1/admin/promos/{id}", admin(d.promo.Delete))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", health.Live)

@@ -10,7 +10,7 @@ import (
 )
 
 const getClinicSettings = `-- name: GetClinicSettings :one
-SELECT id, buffer_minutes, min_booking_lead_minutes, max_booking_days_ahead, cancel_deadline_hours, updated_at FROM clinic_settings
+SELECT id, buffer_minutes, min_booking_lead_minutes, max_booking_days_ahead, cancel_deadline_hours, updated_at, clinic_name, address, phone, whatsapp, email, opening_hours_text FROM clinic_settings
 WHERE id = 1
 `
 
@@ -24,6 +24,61 @@ func (q *Queries) GetClinicSettings(ctx context.Context) (ClinicSetting, error) 
 		&i.MaxBookingDaysAhead,
 		&i.CancelDeadlineHours,
 		&i.UpdatedAt,
+		&i.ClinicName,
+		&i.Address,
+		&i.Phone,
+		&i.Whatsapp,
+		&i.Email,
+		&i.OpeningHoursText,
+	)
+	return i, err
+}
+
+const updateClinicProfile = `-- name: UpdateClinicProfile :one
+UPDATE clinic_settings
+SET clinic_name = $1,
+    address = $2,
+    phone = $3,
+    whatsapp = $4,
+    email = $5,
+    opening_hours_text = $6,
+    updated_at = now()
+WHERE id = 1
+RETURNING id, buffer_minutes, min_booking_lead_minutes, max_booking_days_ahead, cancel_deadline_hours, updated_at, clinic_name, address, phone, whatsapp, email, opening_hours_text
+`
+
+type UpdateClinicProfileParams struct {
+	ClinicName       string
+	Address          string
+	Phone            string
+	Whatsapp         string
+	Email            string
+	OpeningHoursText string
+}
+
+func (q *Queries) UpdateClinicProfile(ctx context.Context, arg UpdateClinicProfileParams) (ClinicSetting, error) {
+	row := q.db.QueryRow(ctx, updateClinicProfile,
+		arg.ClinicName,
+		arg.Address,
+		arg.Phone,
+		arg.Whatsapp,
+		arg.Email,
+		arg.OpeningHoursText,
+	)
+	var i ClinicSetting
+	err := row.Scan(
+		&i.ID,
+		&i.BufferMinutes,
+		&i.MinBookingLeadMinutes,
+		&i.MaxBookingDaysAhead,
+		&i.CancelDeadlineHours,
+		&i.UpdatedAt,
+		&i.ClinicName,
+		&i.Address,
+		&i.Phone,
+		&i.Whatsapp,
+		&i.Email,
+		&i.OpeningHoursText,
 	)
 	return i, err
 }
@@ -36,7 +91,7 @@ SET buffer_minutes = $1,
     cancel_deadline_hours = $4,
     updated_at = now()
 WHERE id = 1
-RETURNING id, buffer_minutes, min_booking_lead_minutes, max_booking_days_ahead, cancel_deadline_hours, updated_at
+RETURNING id, buffer_minutes, min_booking_lead_minutes, max_booking_days_ahead, cancel_deadline_hours, updated_at, clinic_name, address, phone, whatsapp, email, opening_hours_text
 `
 
 type UpdateClinicSettingsParams struct {
@@ -61,6 +116,12 @@ func (q *Queries) UpdateClinicSettings(ctx context.Context, arg UpdateClinicSett
 		&i.MaxBookingDaysAhead,
 		&i.CancelDeadlineHours,
 		&i.UpdatedAt,
+		&i.ClinicName,
+		&i.Address,
+		&i.Phone,
+		&i.Whatsapp,
+		&i.Email,
+		&i.OpeningHoursText,
 	)
 	return i, err
 }

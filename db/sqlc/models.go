@@ -38,6 +38,12 @@ type ClinicSetting struct {
 	MaxBookingDaysAhead   int32
 	CancelDeadlineHours   int32
 	UpdatedAt             time.Time
+	ClinicName            string
+	Address               string
+	Phone                 string
+	Whatsapp              string
+	Email                 string
+	OpeningHoursText      string
 }
 
 type Invoice struct {
@@ -68,6 +74,24 @@ type Patient struct {
 	ConsentAt time.Time
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type Promo struct {
+	ID          int64
+	Title       string
+	Slug        string
+	Description string
+	ImageUrl    string
+	StartDate   pgtype.Date
+	EndDate     pgtype.Date
+	IsActive    bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type PromoTreatment struct {
+	PromoID     int64
+	TreatmentID int64
 }
 
 type Session struct {

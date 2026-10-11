@@ -12,6 +12,7 @@ import (
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/booking"
 	"github.com/kemalthoriq/healthcare_be/internal/invoice"
+	"github.com/kemalthoriq/healthcare_be/internal/promo"
 	"github.com/kemalthoriq/healthcare_be/internal/setting"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
@@ -38,6 +39,7 @@ func newTestRouter() http.Handler {
 		booking:        booking.NewHandler(nil, nil, time.UTC),
 		patient:        booking.NewPatientHandler(nil, time.UTC),
 		invoice:        invoice.NewHandler(nil, time.UTC),
+		promo:          promo.NewHandler(nil),
 	})
 }
 
@@ -134,6 +136,12 @@ func TestRouter_ProtectedRoutes(t *testing.T) {
 		{"invoice list requires session", http.MethodGet, "/api/v1/admin/invoices", "", http.StatusUnauthorized},
 		{"invoice update requires session", http.MethodPatch, "/api/v1/admin/invoices/1", testOrigin, http.StatusUnauthorized},
 		{"invoice pay requires session", http.MethodPost, "/api/v1/admin/invoices/1/pay", testOrigin, http.StatusUnauthorized},
+		{"admin clinic requires session", http.MethodGet, "/api/v1/admin/clinic", "", http.StatusUnauthorized},
+		{"admin clinic update requires session", http.MethodPut, "/api/v1/admin/clinic", testOrigin, http.StatusUnauthorized},
+		{"admin promo list requires session", http.MethodGet, "/api/v1/admin/promos", "", http.StatusUnauthorized},
+		{"admin promo create requires session", http.MethodPost, "/api/v1/admin/promos", testOrigin, http.StatusUnauthorized},
+		{"admin promo update requires session", http.MethodPut, "/api/v1/admin/promos/1", testOrigin, http.StatusUnauthorized},
+		{"admin promo delete requires session", http.MethodDelete, "/api/v1/admin/promos/1", testOrigin, http.StatusUnauthorized},
 	}
 
 	for _, tt := range tests {

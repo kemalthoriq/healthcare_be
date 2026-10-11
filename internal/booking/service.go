@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/phone"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
 )
@@ -125,7 +126,7 @@ func validateCreate(in CreateInput) (string, map[string]string) {
 		fields["name"] = fmt.Sprintf("Nama maksimal %d karakter.", maxNameLength)
 	}
 
-	phone, ok := NormalizePhone(in.Phone)
+	normalized, ok := phone.Normalize(in.Phone)
 	if !ok {
 		fields["phone"] = "Nomor WhatsApp belum sesuai. Contoh: 081234567890."
 	}
@@ -145,5 +146,5 @@ func validateCreate(in CreateInput) (string, map[string]string) {
 		fields["consent"] = "Persetujuan penggunaan data wajib dicentang."
 	}
 
-	return phone, fields
+	return normalized, fields
 }

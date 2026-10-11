@@ -9,7 +9,8 @@ import (
 )
 
 type fakeStore struct {
-	saved Settings
+	saved  Settings
+	clinic Clinic
 }
 
 func (f *fakeStore) Get(ctx context.Context) (Settings, error) {
@@ -19,6 +20,15 @@ func (f *fakeStore) Get(ctx context.Context) (Settings, error) {
 func (f *fakeStore) Update(ctx context.Context, s Settings) (Settings, error) {
 	f.saved = s
 	return s, nil
+}
+
+func (f *fakeStore) GetClinic(ctx context.Context) (Clinic, error) {
+	return f.clinic, nil
+}
+
+func (f *fakeStore) UpdateClinic(ctx context.Context, c Clinic) (Clinic, error) {
+	f.clinic = c
+	return c, nil
 }
 
 func validSettings() Settings {

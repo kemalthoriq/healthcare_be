@@ -23,6 +23,8 @@ type Settings struct {
 type store interface {
 	Get(ctx context.Context) (Settings, error)
 	Update(ctx context.Context, s Settings) (Settings, error)
+	GetClinic(ctx context.Context) (Clinic, error)
+	UpdateClinic(ctx context.Context, c Clinic) (Clinic, error)
 }
 
 type Repository struct {
