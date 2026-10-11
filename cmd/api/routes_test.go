@@ -12,6 +12,7 @@ import (
 	"github.com/kemalthoriq/healthcare_be/internal/auth"
 	"github.com/kemalthoriq/healthcare_be/internal/booking"
 	"github.com/kemalthoriq/healthcare_be/internal/invoice"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/ratelimit"
 	"github.com/kemalthoriq/healthcare_be/internal/promo"
 	"github.com/kemalthoriq/healthcare_be/internal/setting"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
@@ -31,12 +32,13 @@ func newTestRouter() http.Handler {
 		log:            slog.New(slog.NewTextHandler(io.Discard, nil)),
 		db:             okPinger{},
 		frontendOrigin: testOrigin,
-		auth:           auth.NewHandler(nil, false),
+		limits:         newRateLimits(),
+		auth:           auth.NewHandler(nil, false, ratelimit.New(10, 15*time.Minute)),
 		treatment:      treatment.NewHandler(nil),
 		therapist:      therapist.NewHandler(nil),
 		account:        therapist.NewAccountHandler(nil),
 		setting:        setting.NewHandler(nil),
-		booking:        booking.NewHandler(nil, nil, time.UTC),
+		booking:        booking.NewHandler(nil, nil, nil, time.UTC),
 		patient:        booking.NewPatientHandler(nil, time.UTC),
 		invoice:        invoice.NewHandler(nil, time.UTC),
 		promo:          promo.NewHandler(nil),
@@ -156,6 +158,45 @@ func TestRouter_ProtectedRoutes(t *testing.T) {
 
 			if rec.Code != tt.wantStatus {
 				t.Errorf("status = %d, want %d, body = %s", rec.Code, tt.wantStatus, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestRouter_RateLimits(t *testing.T) {
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		allow  int
+	}{
+		{"create booking", http.MethodPost, "/api/v1/bookings", 5},
+		{"booking code", http.MethodPost, "/api/v1/bookings/LMR-AAAA-AAAA/cancel", 30},
+		{"login", http.MethodPost, "/api/v1/admin/auth/login", 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newTestRouter()
+			do := func(remote string) int {
+				rec := httptest.NewRecorder()
+				req := httptest.NewRequest(tt.method, tt.path, nil)
+				req.Header.Set("Origin", testOrigin)
+				req.RemoteAddr = remote
+				router.ServeHTTP(rec, req)
+				return rec.Code
+			}
+
+			for i := range tt.allow {
+				if code := do("203.0.113.9:1000"); code == http.StatusTooManyRequests {
+					t.Fatalf("request %d limited too early", i+1)
+				}
+			}
+			if code := do("203.0.113.9:1000"); code != http.StatusTooManyRequests {
+				t.Errorf("request %d: status = %d, want 429", tt.allow+1, code)
+			}
+			if code := do("198.51.100.7:1000"); code == http.StatusTooManyRequests {
+				t.Error("other IP must not be limited")
 			}
 		})
 	}

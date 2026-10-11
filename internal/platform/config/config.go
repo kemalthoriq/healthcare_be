@@ -31,6 +31,8 @@ type Config struct {
 	SMTPUser          string
 	SMTPPassword      string
 	SMTPFrom          string
+	TrustedProxyHops  int
+	TurnstileSecret   string
 }
 
 func Load() (Config, error) {
@@ -47,6 +49,7 @@ func Load() (Config, error) {
 		SMTPUser:          getEnv("SMTP_USER", ""),
 		SMTPPassword:      getEnv("SMTP_PASSWORD", ""),
 		SMTPFrom:          getEnv("SMTP_FROM", ""),
+		TurnstileSecret:   getEnv("TURNSTILE_SECRET_KEY", ""),
 	}
 	if cfg.AppEnv != EnvDevelopment && cfg.AppEnv != EnvProduction {
 		errs = append(errs, errors.New("APP_ENV must be either development or production"))
@@ -112,6 +115,16 @@ func Load() (Config, error) {
 		if _, err := mail.ParseAddress(cfg.SMTPFrom); err != nil {
 			errs = append(errs, errors.New("SMTP_FROM must be an address like \"Lumière Clinic <noreply@example.com>\" when EMAIL_ENABLED=true"))
 		}
+	}
+
+	hops, err := strconv.Atoi(getEnv("TRUSTED_PROXY_HOPS", "0"))
+	if err != nil || hops < 0 || hops > 5 {
+		errs = append(errs, errors.New("TRUSTED_PROXY_HOPS must be a number between 0 and 5"))
+	}
+	cfg.TrustedProxyHops = hops
+
+	if cfg.IsProduction() && cfg.TurnstileSecret == "" {
+		errs = append(errs, errors.New("TURNSTILE_SECRET_KEY is required in production"))
 	}
 
 	return cfg, errors.Join(errs...)

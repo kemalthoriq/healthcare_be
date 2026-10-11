@@ -5,12 +5,15 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/kemalthoriq/healthcare_be/internal/platform/ratelimit"
 )
 
 func newTestHandler() *Handler {
 	store := newFakeStore()
 	store.addUser(User{ID: 7, Name: "Admin", Email: "admin@lumiere.test", Role: RoleAdmin, IsActive: true}, testPassword)
-	return NewHandler(newTestService(store), true)
+	return NewHandler(newTestService(store), true, ratelimit.New(10, 15*time.Minute))
 }
 
 func login(t *testing.T, h *Handler, body string) *httptest.ResponseRecorder {
@@ -64,6 +67,25 @@ func TestHandlerLogin_Rejects(t *testing.T) {
 				t.Error("no cookie should be set")
 			}
 		})
+	}
+}
+
+func TestHandlerLogin_LimitsAttemptsPerEmail(t *testing.T) {
+	h := newTestHandler()
+
+	for i := range 10 {
+		if rec := login(t, h, `{"email":"admin@lumiere.test","password":"salah"}`); rec.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: status = %d, want 401", i+1, rec.Code)
+		}
+	}
+
+	rec := login(t, h, `{"email":" ADMIN@lumiere.test ","password":"`+testPassword+`"}`)
+	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") == "" {
+		t.Errorf("11th attempt: status = %d, Retry-After = %q; want 429 with Retry-After", rec.Code, rec.Header().Get("Retry-After"))
+	}
+
+	if rec := login(t, h, `{"email":"lain@lumiere.test","password":"salah"}`); rec.Code != http.StatusUnauthorized {
+		t.Errorf("other email: status = %d, want 401", rec.Code)
 	}
 }
 
