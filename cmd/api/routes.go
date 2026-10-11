@@ -139,9 +139,9 @@ func newRouter(d routerDeps) http.Handler {
 
 	return middleware.Chain(mux,
 		middleware.RequestID,
+		clientip.Middleware(d.trustedProxyHops),
 		middleware.Logger(d.log),
 		middleware.Recover,
 		middleware.SecureHeaders,
-		clientip.Middleware(d.trustedProxyHops),
 	)
 }
