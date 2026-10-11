@@ -67,11 +67,11 @@ func run() error {
 		return fmt.Errorf("load clinic timezone: %w", err)
 	}
 
-	treatmentService := treatment.NewService(treatment.NewRepository(pool))
-	therapistService := therapist.NewService(therapist.NewRepository(pool), treatmentService)
+	bookingRepository := booking.NewRepository(pool)
+	treatmentService := treatment.NewService(treatment.NewRepository(pool), bookingRepository)
+	therapistService := therapist.NewService(therapist.NewRepository(pool), treatmentService, bookingRepository)
 	accountService := therapist.NewAccountService(therapistService, authService)
 	settingService := setting.NewService(setting.NewRepository(pool))
-	bookingRepository := booking.NewRepository(pool)
 	availability := booking.NewAvailability(treatmentService, therapistService, settingService, bookingRepository, clinicLocation)
 	bookingService := booking.NewService(availability, bookingRepository)
 

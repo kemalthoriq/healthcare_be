@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/kemalthoriq/healthcare_be/internal/integrity"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/slug"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
@@ -55,11 +56,12 @@ type treatmentFinder interface {
 type Service struct {
 	store      store
 	treatments treatmentFinder
+	bookings   integrity.Finder
 	now        func() time.Time
 }
 
-func NewService(store store, treatments treatmentFinder) *Service {
-	return &Service{store: store, treatments: treatments, now: time.Now}
+func NewService(store store, treatments treatmentFinder, bookings integrity.Finder) *Service {
+	return &Service{store: store, treatments: treatments, bookings: bookings, now: time.Now}
 }
 
 func (s *Service) ListActive(ctx context.Context) ([]Therapist, error) {
@@ -114,6 +116,21 @@ func (s *Service) Update(ctx context.Context, id int64, in Input) (Therapist, er
 		return Therapist{}, apperr.Validation(fields)
 	}
 
+	current, err := s.Get(ctx, id)
+	if err != nil {
+		return Therapist{}, err
+	}
+
+	if current.IsActive && !in.IsActive {
+		active, err := s.bookings.ActiveByTherapist(ctx, id)
+		if err != nil {
+			return Therapist{}, err
+		}
+		if err := integrity.Conflict(active); err != nil {
+			return Therapist{}, err
+		}
+	}
+
 	t, err := s.store.Update(ctx, id, in)
 	return t, mapNotFound(err)
 }
@@ -162,7 +179,21 @@ func (s *Service) SetForTreatment(ctx context.Context, treatmentID int64, therap
 	slices.Sort(ids)
 	ids = slices.Compact(ids)
 
-	err := s.store.ReplaceTreatmentTherapists(ctx, treatmentID, ids)
+	active, err := s.bookings.ActiveByTreatment(ctx, treatmentID)
+	if err != nil {
+		return nil, err
+	}
+	var detached []integrity.Booking
+	for _, b := range active {
+		if !slices.Contains(ids, b.TherapistID) {
+			detached = append(detached, b)
+		}
+	}
+	if err := integrity.Conflict(detached); err != nil {
+		return nil, err
+	}
+
+	err = s.store.ReplaceTreatmentTherapists(ctx, treatmentID, ids)
 	if errors.Is(err, errUnknownTherapist) {
 		return nil, apperr.Validation(map[string]string{"therapist_ids": "Ada terapis yang tidak ditemukan."})
 	}

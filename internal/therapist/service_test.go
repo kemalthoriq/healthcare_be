@@ -130,7 +130,7 @@ func (fakeTreatments) GetActiveBySlug(ctx context.Context, slug string) (treatme
 
 func newTestService() (*Service, *fakeStore) {
 	store := newFakeStore()
-	return NewService(store, fakeTreatments{}), store
+	return NewService(store, fakeTreatments{}, fakeBookings{}), store
 }
 
 func validInput() Input {

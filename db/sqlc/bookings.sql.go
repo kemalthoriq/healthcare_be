@@ -192,6 +192,55 @@ func (q *Queries) ListActiveBookingRanges(ctx context.Context, arg ListActiveBoo
 	return items, nil
 }
 
+const listUpcomingActiveBookings = `-- name: ListUpcomingActiveBookings :many
+SELECT code, treatment_id, therapist_id, start_at, end_at
+FROM bookings
+WHERE status IN ('pending', 'confirmed')
+  AND start_at > now()
+  AND ($1::bigint IS NULL OR treatment_id = $1::bigint)
+  AND ($2::bigint IS NULL OR therapist_id = $2::bigint)
+ORDER BY start_at
+`
+
+type ListUpcomingActiveBookingsParams struct {
+	TreatmentID *int64
+	TherapistID *int64
+}
+
+type ListUpcomingActiveBookingsRow struct {
+	Code        string
+	TreatmentID int64
+	TherapistID int64
+	StartAt     time.Time
+	EndAt       time.Time
+}
+
+func (q *Queries) ListUpcomingActiveBookings(ctx context.Context, arg ListUpcomingActiveBookingsParams) ([]ListUpcomingActiveBookingsRow, error) {
+	rows, err := q.db.Query(ctx, listUpcomingActiveBookings, arg.TreatmentID, arg.TherapistID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUpcomingActiveBookingsRow
+	for rows.Next() {
+		var i ListUpcomingActiveBookingsRow
+		if err := rows.Scan(
+			&i.Code,
+			&i.TreatmentID,
+			&i.TherapistID,
+			&i.StartAt,
+			&i.EndAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertPatient = `-- name: UpsertPatient :one
 INSERT INTO patients (name, phone, email, consent_at)
 VALUES ($1, $2, $3, now())
