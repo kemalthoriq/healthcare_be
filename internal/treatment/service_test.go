@@ -90,7 +90,7 @@ func validInput() Input {
 }
 
 func TestCreate_GeneratesUniqueSlug(t *testing.T) {
-	svc := NewService(newFakeStore())
+	svc := NewService(newFakeStore(), fakeBookings{})
 
 	var slugs []string
 	for range 3 {
@@ -110,7 +110,7 @@ func TestCreate_TrimsInput(t *testing.T) {
 	in := validInput()
 	in.Name = "  Facial Glow  "
 
-	created, err := NewService(newFakeStore()).Create(context.Background(), in)
+	created, err := NewService(newFakeStore(), fakeBookings{}).Create(context.Background(), in)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestCreate_Validation(t *testing.T) {
 			in := validInput()
 			tt.modify(&in)
 
-			_, err := NewService(newFakeStore()).Create(context.Background(), in)
+			_, err := NewService(newFakeStore(), fakeBookings{}).Create(context.Background(), in)
 
 			var appErr *apperr.Error
 			if !errors.As(err, &appErr) || appErr.Code != "VALIDATION_ERROR" {
@@ -156,7 +156,7 @@ func TestCreate_Validation(t *testing.T) {
 
 func TestUpdate_KeepsSlug(t *testing.T) {
 	store := newFakeStore()
-	svc := NewService(store)
+	svc := NewService(store, fakeBookings{})
 	created, _ := svc.Create(context.Background(), validInput())
 
 	in := validInput()
@@ -171,7 +171,7 @@ func TestUpdate_KeepsSlug(t *testing.T) {
 }
 
 func TestNotFound(t *testing.T) {
-	svc := NewService(newFakeStore())
+	svc := NewService(newFakeStore(), fakeBookings{})
 	ctx := context.Background()
 
 	_, getErr := svc.Get(ctx, 99)
@@ -187,7 +187,7 @@ func TestNotFound(t *testing.T) {
 }
 
 func TestGetActiveBySlug_HidesInactive(t *testing.T) {
-	svc := NewService(newFakeStore())
+	svc := NewService(newFakeStore(), fakeBookings{})
 	in := validInput()
 	in.IsActive = false
 	created, _ := svc.Create(context.Background(), in)

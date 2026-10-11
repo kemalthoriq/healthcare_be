@@ -43,10 +43,10 @@ func TestIntegration_ExclusionConstraintPreventsDoubleBooking(t *testing.T) {
 		t.Fatalf("load location: %v", err)
 	}
 
-	treatments := treatment.NewService(treatment.NewRepository(pool))
-	therapists := therapist.NewService(therapist.NewRepository(pool), treatments)
-	settings := setting.NewService(setting.NewRepository(pool))
 	repo := NewRepository(pool)
+	treatments := treatment.NewService(treatment.NewRepository(pool), repo)
+	therapists := therapist.NewService(therapist.NewRepository(pool), treatments, repo)
+	settings := setting.NewService(setting.NewRepository(pool))
 	svc := NewService(NewAvailability(treatments, therapists, settings, repo, loc), repo)
 
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 36)

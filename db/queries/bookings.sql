@@ -38,3 +38,12 @@ WHERE code = sqlc.arg(code)
   AND status IN ('pending', 'confirmed')
   AND start_at > sqlc.arg(min_start_at)
 RETURNING *;
+
+-- name: ListUpcomingActiveBookings :many
+SELECT code, treatment_id, therapist_id, start_at, end_at
+FROM bookings
+WHERE status IN ('pending', 'confirmed')
+  AND start_at > now()
+  AND (sqlc.narg(treatment_id)::bigint IS NULL OR treatment_id = sqlc.narg(treatment_id)::bigint)
+  AND (sqlc.narg(therapist_id)::bigint IS NULL OR therapist_id = sqlc.narg(therapist_id)::bigint)
+ORDER BY start_at;

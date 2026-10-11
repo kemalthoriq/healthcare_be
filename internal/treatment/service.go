@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/kemalthoriq/healthcare_be/internal/integrity"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/slug"
 )
@@ -38,11 +39,12 @@ type store interface {
 }
 
 type Service struct {
-	store store
+	store    store
+	bookings integrity.Finder
 }
 
-func NewService(store store) *Service {
-	return &Service{store: store}
+func NewService(store store, bookings integrity.Finder) *Service {
+	return &Service{store: store, bookings: bookings}
 }
 
 func (s *Service) ListActive(ctx context.Context) ([]Treatment, error) {
@@ -90,6 +92,21 @@ func (s *Service) Update(ctx context.Context, id int64, in Input) (Treatment, er
 	in = normalize(in)
 	if fields := validate(in); len(fields) > 0 {
 		return Treatment{}, apperr.Validation(fields)
+	}
+
+	current, err := s.Get(ctx, id)
+	if err != nil {
+		return Treatment{}, err
+	}
+
+	if current.IsActive && !in.IsActive {
+		active, err := s.bookings.ActiveByTreatment(ctx, id)
+		if err != nil {
+			return Treatment{}, err
+		}
+		if err := integrity.Conflict(active); err != nil {
+			return Treatment{}, err
+		}
 	}
 
 	t, err := s.store.Update(ctx, id, in)

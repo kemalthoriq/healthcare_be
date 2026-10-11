@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/kemalthoriq/healthcare_be/internal/integrity"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
 )
 
@@ -38,7 +39,21 @@ func (s *Service) SetSchedules(ctx context.Context, therapistID int64, shifts []
 		return nil, apperr.Validation(fields)
 	}
 
-	err := s.store.ReplaceSchedules(ctx, therapistID, shifts)
+	active, err := s.bookings.ActiveByTherapist(ctx, therapistID)
+	if err != nil {
+		return nil, err
+	}
+	var outside []integrity.Booking
+	for _, b := range active {
+		if !fitsShifts(b, shifts) {
+			outside = append(outside, b)
+		}
+	}
+	if err := integrity.Conflict(outside); err != nil {
+		return nil, err
+	}
+
+	err = s.store.ReplaceSchedules(ctx, therapistID, shifts)
 	if errors.Is(err, errShiftOverlap) {
 		return nil, apperr.Validation(map[string]string{"shifts": "Ada shift yang bertumpuk di hari yang sama."})
 	}
@@ -66,6 +81,20 @@ func (s *Service) CreateTimeOff(ctx context.Context, therapistID int64, in TimeO
 		return TimeOff{}, apperr.Validation(fields)
 	}
 
+	active, err := s.bookings.ActiveByTherapist(ctx, therapistID)
+	if err != nil {
+		return TimeOff{}, err
+	}
+	var overlapping []integrity.Booking
+	for _, b := range active {
+		if b.StartAt.Before(in.EndAt) && in.StartAt.Before(b.EndAt) {
+			overlapping = append(overlapping, b)
+		}
+	}
+	if err := integrity.Conflict(overlapping); err != nil {
+		return TimeOff{}, err
+	}
+
 	return s.store.CreateTimeOff(ctx, therapistID, in)
 }
 
@@ -75,6 +104,19 @@ func (s *Service) DeleteTimeOff(ctx context.Context, therapistID, timeOffID int6
 		return ErrTimeOffNotFound
 	}
 	return err
+}
+
+func fitsShifts(b integrity.Booking, shifts []Shift) bool {
+	start := b.StartAt.In(integrity.Location)
+	from := start.Hour()*60 + start.Minute()
+	to := from + int(b.EndAt.Sub(b.StartAt).Minutes())
+
+	for _, sh := range shifts {
+		if sh.DayOfWeek == int(start.Weekday()) && sh.Start <= from && to <= sh.End {
+			return true
+		}
+	}
+	return false
 }
 
 func validateShifts(shifts []Shift) map[string]string {
