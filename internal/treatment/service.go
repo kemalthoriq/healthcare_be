@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 	"unicode/utf8"
 
@@ -16,7 +15,6 @@ import (
 const (
 	maxNameLength        = 100
 	maxDescriptionLength = 2000
-	maxImageURLLength    = 500
 	maxPrice             = 100_000_000
 	minDuration          = 15
 	maxDuration          = 480
@@ -38,13 +36,18 @@ type store interface {
 	Delete(ctx context.Context, id int64) error
 }
 
+type imageChecker interface {
+	CheckImageURL(raw string) string
+}
+
 type Service struct {
 	store    store
 	bookings integrity.Finder
+	images   imageChecker
 }
 
-func NewService(store store, bookings integrity.Finder) *Service {
-	return &Service{store: store, bookings: bookings}
+func NewService(store store, bookings integrity.Finder, images imageChecker) *Service {
+	return &Service{store: store, bookings: bookings, images: images}
 }
 
 func (s *Service) ListActive(ctx context.Context) ([]Treatment, error) {
@@ -67,7 +70,7 @@ func (s *Service) Get(ctx context.Context, id int64) (Treatment, error) {
 
 func (s *Service) Create(ctx context.Context, in Input) (Treatment, error) {
 	in = normalize(in)
-	if fields := validate(in); len(fields) > 0 {
+	if fields := validate(in, s.images); len(fields) > 0 {
 		return Treatment{}, apperr.Validation(fields)
 	}
 
@@ -90,7 +93,7 @@ func (s *Service) Create(ctx context.Context, in Input) (Treatment, error) {
 
 func (s *Service) Update(ctx context.Context, id int64, in Input) (Treatment, error) {
 	in = normalize(in)
-	if fields := validate(in); len(fields) > 0 {
+	if fields := validate(in, s.images); len(fields) > 0 {
 		return Treatment{}, apperr.Validation(fields)
 	}
 
@@ -135,7 +138,7 @@ func normalize(in Input) Input {
 	return in
 }
 
-func validate(in Input) map[string]string {
+func validate(in Input, images imageChecker) map[string]string {
 	fields := map[string]string{}
 
 	switch {
@@ -149,8 +152,8 @@ func validate(in Input) map[string]string {
 		fields["description"] = fmt.Sprintf("Deskripsi maksimal %d karakter.", maxDescriptionLength)
 	}
 
-	if in.ImageURL != "" && !validImageURL(in.ImageURL) {
-		fields["image_url"] = "URL gambar harus diawali https:// dan maksimal 500 karakter."
+	if msg := images.CheckImageURL(in.ImageURL); msg != "" {
+		fields["image_url"] = msg
 	}
 
 	if in.Price < 0 || in.Price > maxPrice {
@@ -162,12 +165,4 @@ func validate(in Input) map[string]string {
 	}
 
 	return fields
-}
-
-func validImageURL(raw string) bool {
-	if len(raw) > maxImageURLLength {
-		return false
-	}
-	u, err := url.Parse(raw)
-	return err == nil && u.Scheme == "https" && u.Host != ""
 }

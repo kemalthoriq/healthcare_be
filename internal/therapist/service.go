@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -17,11 +16,10 @@ import (
 )
 
 const (
-	maxNameLength     = 100
-	maxTitleLength    = 100
-	maxBioLength      = 2000
-	maxPhotoURLLength = 500
-	maxSlugAttempts   = 50
+	maxNameLength   = 100
+	maxTitleLength  = 100
+	maxBioLength    = 2000
+	maxSlugAttempts = 50
 )
 
 var (
@@ -53,15 +51,20 @@ type treatmentFinder interface {
 	GetActiveBySlug(ctx context.Context, slug string) (treatment.Treatment, error)
 }
 
+type imageChecker interface {
+	CheckImageURL(raw string) string
+}
+
 type Service struct {
 	store      store
 	treatments treatmentFinder
 	bookings   integrity.Finder
+	images     imageChecker
 	now        func() time.Time
 }
 
-func NewService(store store, treatments treatmentFinder, bookings integrity.Finder) *Service {
-	return &Service{store: store, treatments: treatments, bookings: bookings, now: time.Now}
+func NewService(store store, treatments treatmentFinder, bookings integrity.Finder, images imageChecker) *Service {
+	return &Service{store: store, treatments: treatments, bookings: bookings, images: images, now: time.Now}
 }
 
 func (s *Service) ListActive(ctx context.Context) ([]Therapist, error) {
@@ -89,7 +92,7 @@ func (s *Service) GetByUserID(ctx context.Context, userID int64) (Therapist, err
 
 func (s *Service) Create(ctx context.Context, in Input) (Therapist, error) {
 	in = normalize(in)
-	if fields := validate(in); len(fields) > 0 {
+	if fields := validate(in, s.images); len(fields) > 0 {
 		return Therapist{}, apperr.Validation(fields)
 	}
 
@@ -112,7 +115,7 @@ func (s *Service) Create(ctx context.Context, in Input) (Therapist, error) {
 
 func (s *Service) Update(ctx context.Context, id int64, in Input) (Therapist, error) {
 	in = normalize(in)
-	if fields := validate(in); len(fields) > 0 {
+	if fields := validate(in, s.images); len(fields) > 0 {
 		return Therapist{}, apperr.Validation(fields)
 	}
 
@@ -219,7 +222,7 @@ func normalize(in Input) Input {
 	return in
 }
 
-func validate(in Input) map[string]string {
+func validate(in Input, images imageChecker) map[string]string {
 	fields := map[string]string{}
 
 	switch {
@@ -237,17 +240,9 @@ func validate(in Input) map[string]string {
 		fields["bio"] = fmt.Sprintf("Bio maksimal %d karakter.", maxBioLength)
 	}
 
-	if in.PhotoURL != "" && !validPhotoURL(in.PhotoURL) {
-		fields["photo_url"] = "URL foto harus diawali https:// dan maksimal 500 karakter."
+	if msg := images.CheckImageURL(in.PhotoURL); msg != "" {
+		fields["photo_url"] = msg
 	}
 
 	return fields
-}
-
-func validPhotoURL(raw string) bool {
-	if len(raw) > maxPhotoURLLength {
-		return false
-	}
-	u, err := url.Parse(raw)
-	return err == nil && u.Scheme == "https" && u.Host != ""
 }

@@ -7,7 +7,10 @@ import (
 	"testing"
 
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/storage"
 )
+
+var noCloudinary = storage.NewCloudinary("", "", "")
 
 type fakeStore struct {
 	items  map[int64]Treatment
@@ -90,7 +93,7 @@ func validInput() Input {
 }
 
 func TestCreate_GeneratesUniqueSlug(t *testing.T) {
-	svc := NewService(newFakeStore(), fakeBookings{})
+	svc := NewService(newFakeStore(), fakeBookings{}, noCloudinary)
 
 	var slugs []string
 	for range 3 {
@@ -110,12 +113,28 @@ func TestCreate_TrimsInput(t *testing.T) {
 	in := validInput()
 	in.Name = "  Facial Glow  "
 
-	created, err := NewService(newFakeStore(), fakeBookings{}).Create(context.Background(), in)
+	created, err := NewService(newFakeStore(), fakeBookings{}, noCloudinary).Create(context.Background(), in)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if created.Name != "Facial Glow" {
 		t.Errorf("Name = %q, want trimmed", created.Name)
+	}
+}
+
+func TestCreate_RequiresClinicCloudinaryWhenConfigured(t *testing.T) {
+	svc := NewService(newFakeStore(), fakeBookings{}, storage.NewCloudinary("lumiere-demo", "123456", "rahasia"))
+
+	in := validInput()
+	in.ImageURL = "https://images.example.com/facial.jpg"
+	var appErr *apperr.Error
+	if _, err := svc.Create(context.Background(), in); !errors.As(err, &appErr) || appErr.Fields["image_url"] == "" {
+		t.Fatalf("foreign image: err = %v, want validation error on image_url", err)
+	}
+
+	in.ImageURL = "https://res.cloudinary.com/lumiere-demo/image/upload/v1/lumiere/treatments/facial.jpg"
+	if _, err := svc.Create(context.Background(), in); err != nil {
+		t.Errorf("clinic upload: unexpected error %v", err)
 	}
 }
 
@@ -141,7 +160,7 @@ func TestCreate_Validation(t *testing.T) {
 			in := validInput()
 			tt.modify(&in)
 
-			_, err := NewService(newFakeStore(), fakeBookings{}).Create(context.Background(), in)
+			_, err := NewService(newFakeStore(), fakeBookings{}, noCloudinary).Create(context.Background(), in)
 
 			var appErr *apperr.Error
 			if !errors.As(err, &appErr) || appErr.Code != "VALIDATION_ERROR" {
@@ -156,7 +175,7 @@ func TestCreate_Validation(t *testing.T) {
 
 func TestUpdate_KeepsSlug(t *testing.T) {
 	store := newFakeStore()
-	svc := NewService(store, fakeBookings{})
+	svc := NewService(store, fakeBookings{}, noCloudinary)
 	created, _ := svc.Create(context.Background(), validInput())
 
 	in := validInput()
@@ -171,7 +190,7 @@ func TestUpdate_KeepsSlug(t *testing.T) {
 }
 
 func TestNotFound(t *testing.T) {
-	svc := NewService(newFakeStore(), fakeBookings{})
+	svc := NewService(newFakeStore(), fakeBookings{}, noCloudinary)
 	ctx := context.Background()
 
 	_, getErr := svc.Get(ctx, 99)
@@ -187,7 +206,7 @@ func TestNotFound(t *testing.T) {
 }
 
 func TestGetActiveBySlug_HidesInactive(t *testing.T) {
-	svc := NewService(newFakeStore(), fakeBookings{})
+	svc := NewService(newFakeStore(), fakeBookings{}, noCloudinary)
 	in := validInput()
 	in.IsActive = false
 	created, _ := svc.Create(context.Background(), in)

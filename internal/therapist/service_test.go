@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/storage"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
 )
 
@@ -130,7 +131,7 @@ func (fakeTreatments) GetActiveBySlug(ctx context.Context, slug string) (treatme
 
 func newTestService() (*Service, *fakeStore) {
 	store := newFakeStore()
-	return NewService(store, fakeTreatments{}, fakeBookings{}), store
+	return NewService(store, fakeTreatments{}, fakeBookings{}, storage.NewCloudinary("", "", "")), store
 }
 
 func validInput() Input {

@@ -33,6 +33,9 @@ type Config struct {
 	SMTPFrom          string
 	TrustedProxyHops  int
 	TurnstileSecret   string
+	CloudinaryCloud   string
+	CloudinaryKey     string
+	CloudinarySecret  string
 }
 
 func Load() (Config, error) {
@@ -50,6 +53,9 @@ func Load() (Config, error) {
 		SMTPPassword:      getEnv("SMTP_PASSWORD", ""),
 		SMTPFrom:          getEnv("SMTP_FROM", ""),
 		TurnstileSecret:   getEnv("TURNSTILE_SECRET_KEY", ""),
+		CloudinaryCloud:   getEnv("CLOUDINARY_CLOUD_NAME", ""),
+		CloudinaryKey:     getEnv("CLOUDINARY_API_KEY", ""),
+		CloudinarySecret:  getEnv("CLOUDINARY_API_SECRET", ""),
 	}
 	if cfg.AppEnv != EnvDevelopment && cfg.AppEnv != EnvProduction {
 		errs = append(errs, errors.New("APP_ENV must be either development or production"))
@@ -125,6 +131,16 @@ func Load() (Config, error) {
 
 	if cfg.IsProduction() && cfg.TurnstileSecret == "" {
 		errs = append(errs, errors.New("TURNSTILE_SECRET_KEY is required in production"))
+	}
+
+	cloudinarySet := 0
+	for _, v := range []string{cfg.CloudinaryCloud, cfg.CloudinaryKey, cfg.CloudinarySecret} {
+		if v != "" {
+			cloudinarySet++
+		}
+	}
+	if cloudinarySet != 0 && cloudinarySet != 3 {
+		errs = append(errs, errors.New("CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET must be set together"))
 	}
 
 	return cfg, errors.Join(errs...)

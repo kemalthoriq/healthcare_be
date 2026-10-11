@@ -56,6 +56,7 @@ func TestError_MapsKindToStatus(t *testing.T) {
 		{apperr.KindUnsupportedMediaType, http.StatusUnsupportedMediaType},
 		{apperr.KindUnprocessable, http.StatusUnprocessableEntity},
 		{apperr.KindRateLimited, http.StatusTooManyRequests},
+		{apperr.KindUnavailable, http.StatusServiceUnavailable},
 		{apperr.KindInternal, http.StatusInternalServerError},
 	}
 
