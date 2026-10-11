@@ -28,6 +28,9 @@ func clearEnv(t *testing.T) {
 	t.Setenv("SMTP_FROM", "")
 	t.Setenv("TRUSTED_PROXY_HOPS", "")
 	t.Setenv("TURNSTILE_SECRET_KEY", "")
+	t.Setenv("CLOUDINARY_CLOUD_NAME", "")
+	t.Setenv("CLOUDINARY_API_KEY", "")
+	t.Setenv("CLOUDINARY_API_SECRET", "")
 }
 
 func setRequiredEnv(t *testing.T) {
@@ -233,5 +236,20 @@ func TestLoad_ProxyAndTurnstile(t *testing.T) {
 	cfg, err = Load()
 	if err != nil || cfg.TrustedProxyHops != 2 {
 		t.Errorf("production config: hops = %d, err = %v", cfg.TrustedProxyHops, err)
+	}
+}
+
+func TestLoad_Cloudinary(t *testing.T) {
+	setRequiredEnv(t)
+	t.Setenv("CLOUDINARY_CLOUD_NAME", "lumiere-demo")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "CLOUDINARY") {
+		t.Fatalf("partial config: err = %v", err)
+	}
+
+	t.Setenv("CLOUDINARY_API_KEY", "123456")
+	t.Setenv("CLOUDINARY_API_SECRET", "rahasia")
+	cfg, err := Load()
+	if err != nil || cfg.CloudinaryCloud != "lumiere-demo" || cfg.CloudinarySecret != "rahasia" {
+		t.Errorf("full config: %+v, err = %v", cfg, err)
 	}
 }

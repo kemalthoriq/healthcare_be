@@ -23,6 +23,7 @@ import (
 	"github.com/kemalthoriq/healthcare_be/internal/platform/email"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/logger"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/ratelimit"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/storage"
 	"github.com/kemalthoriq/healthcare_be/internal/promo"
 	"github.com/kemalthoriq/healthcare_be/internal/setting"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
@@ -73,9 +74,14 @@ func run() error {
 		return fmt.Errorf("load clinic timezone: %w", err)
 	}
 
+	cloudinary := storage.NewCloudinary(cfg.CloudinaryCloud, cfg.CloudinaryKey, cfg.CloudinarySecret)
+	if !cloudinary.Configured() {
+		log.Warn("Cloudinary not configured, image upload disabled")
+	}
+
 	bookingRepository := booking.NewRepository(pool)
-	treatmentService := treatment.NewService(treatment.NewRepository(pool), bookingRepository)
-	therapistService := therapist.NewService(therapist.NewRepository(pool), treatmentService, bookingRepository)
+	treatmentService := treatment.NewService(treatment.NewRepository(pool), bookingRepository, cloudinary)
+	therapistService := therapist.NewService(therapist.NewRepository(pool), treatmentService, bookingRepository, cloudinary)
 	accountService := therapist.NewAccountService(therapistService, authService)
 	settingService := setting.NewService(setting.NewRepository(pool))
 	availability := booking.NewAvailability(treatmentService, therapistService, settingService, bookingRepository, clinicLocation)
@@ -117,7 +123,8 @@ func run() error {
 		booking:          booking.NewHandler(availability, bookingService, verifier, clinicLocation),
 		patient:          booking.NewPatientHandler(booking.NewPatientService(bookingRepository, bookingService), clinicLocation),
 		invoice:          invoice.NewHandler(invoiceService, clinicLocation),
-		promo:            promo.NewHandler(promo.NewService(promo.NewRepository(pool), clinicLocation)),
+		promo:            promo.NewHandler(promo.NewService(promo.NewRepository(pool), cloudinary, clinicLocation)),
+		upload:           storage.NewHandler(cloudinary),
 	})
 
 	srv := &http.Server{

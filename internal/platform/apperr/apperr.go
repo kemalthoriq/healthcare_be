@@ -13,6 +13,7 @@ const (
 	KindUnsupportedMediaType
 	KindUnprocessable
 	KindRateLimited
+	KindUnavailable
 )
 
 type Error struct {
@@ -65,4 +66,8 @@ func Validation(fields map[string]string) *Error {
 
 func RateLimited() *Error {
 	return New(KindRateLimited, "RATE_LIMITED", "Terlalu banyak permintaan. Silakan coba lagi nanti.")
+}
+
+func Unavailable(code, message string) *Error {
+	return New(KindUnavailable, code, message)
 }

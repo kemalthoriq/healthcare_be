@@ -86,6 +86,8 @@ func statusFor(kind apperr.Kind) int {
 		return http.StatusUnprocessableEntity
 	case apperr.KindRateLimited:
 		return http.StatusTooManyRequests
+	case apperr.KindUnavailable:
+		return http.StatusServiceUnavailable
 	default:
 		return http.StatusInternalServerError
 	}

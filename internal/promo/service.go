@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -17,7 +16,6 @@ import (
 const (
 	maxTitleLength       = 100
 	maxDescriptionLength = 2000
-	maxImageURLLength    = 500
 	maxTreatments        = 20
 	maxSlugAttempts      = 50
 )
@@ -34,14 +32,19 @@ type store interface {
 	Delete(ctx context.Context, id int64) error
 }
 
-type Service struct {
-	store store
-	loc   *time.Location
-	now   func() time.Time
+type imageChecker interface {
+	CheckImageURL(raw string) string
 }
 
-func NewService(store store, loc *time.Location) *Service {
-	return &Service{store: store, loc: loc, now: time.Now}
+type Service struct {
+	store  store
+	images imageChecker
+	loc    *time.Location
+	now    func() time.Time
+}
+
+func NewService(store store, images imageChecker, loc *time.Location) *Service {
+	return &Service{store: store, images: images, loc: loc, now: time.Now}
 }
 
 func (s *Service) ListPublic(ctx context.Context) ([]Promo, error) {
@@ -73,7 +76,7 @@ func (s *Service) Get(ctx context.Context, id int64) (Promo, error) {
 }
 
 func (s *Service) Create(ctx context.Context, in Input) (Promo, error) {
-	v, err := validate(in)
+	v, err := validate(in, s.images)
 	if err != nil {
 		return Promo{}, err
 	}
@@ -99,7 +102,7 @@ func (s *Service) Create(ctx context.Context, in Input) (Promo, error) {
 }
 
 func (s *Service) Update(ctx context.Context, id int64, in Input) (Promo, error) {
-	v, err := validate(in)
+	v, err := validate(in, s.images)
 	if err != nil {
 		return Promo{}, err
 	}
@@ -144,7 +147,7 @@ func mapStoreError(err error) error {
 	return mapNotFound(err)
 }
 
-func validate(in Input) (Values, error) {
+func validate(in Input, images imageChecker) (Values, error) {
 	v := Values{
 		Title:       strings.TrimSpace(in.Title),
 		Description: strings.TrimSpace(in.Description),
@@ -164,8 +167,8 @@ func validate(in Input) (Values, error) {
 		fields["description"] = fmt.Sprintf("Deskripsi maksimal %d karakter.", maxDescriptionLength)
 	}
 
-	if v.ImageURL != "" && !validImageURL(v.ImageURL) {
-		fields["image_url"] = "URL gambar harus diawali https:// dan maksimal 500 karakter."
+	if msg := images.CheckImageURL(v.ImageURL); msg != "" {
+		fields["image_url"] = msg
 	}
 
 	start, startErr := time.Parse(DateLayout, strings.TrimSpace(in.StartDate))
@@ -193,12 +196,4 @@ func validate(in Input) (Values, error) {
 		return Values{}, apperr.Validation(fields)
 	}
 	return v, nil
-}
-
-func validImageURL(raw string) bool {
-	if len(raw) > maxImageURLLength {
-		return false
-	}
-	u, err := url.Parse(raw)
-	return err == nil && u.Scheme == "https" && u.Host != ""
 }

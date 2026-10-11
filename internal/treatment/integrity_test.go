@@ -35,7 +35,7 @@ func (f fakeBookings) ActiveByTherapist(ctx context.Context, therapistID int64) 
 func TestUpdate_DeactivateWithActiveBookings(t *testing.T) {
 	ctx := context.Background()
 	store := newFakeStore()
-	svc := NewService(store, fakeBookings{})
+	svc := NewService(store, fakeBookings{}, noCloudinary)
 	created, _ := svc.Create(ctx, validInput())
 	svc.bookings = fakeBookings{{Code: "LMR-AAAA-0001", TreatmentID: created.ID, StartAt: time.Now().Add(time.Hour)}}
 

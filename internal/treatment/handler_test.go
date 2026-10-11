@@ -8,7 +8,7 @@ import (
 )
 
 func newTestMux() *http.ServeMux {
-	h := NewHandler(NewService(newFakeStore(), fakeBookings{}))
+	h := NewHandler(NewService(newFakeStore(), fakeBookings{}, noCloudinary))
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /treatments/{slug}", h.GetPublic)
 	mux.HandleFunc("POST /admin/treatments", h.Create)

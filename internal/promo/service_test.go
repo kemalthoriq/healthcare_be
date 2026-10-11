@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/storage"
 )
 
 var wib = time.FixedZone("WIB", 7*60*60)
@@ -93,7 +94,7 @@ func toPromo(id int64, slug string, v Values) Promo {
 
 func newTestService() (*Service, *fakeStore) {
 	store := newFakeStore()
-	svc := NewService(store, wib)
+	svc := NewService(store, storage.NewCloudinary("", "", ""), wib)
 	svc.now = func() time.Time { return time.Date(2026, 10, 31, 18, 0, 0, 0, time.UTC) }
 	return svc, store
 }

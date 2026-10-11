@@ -16,6 +16,7 @@ import (
 
 	"github.com/kemalthoriq/healthcare_be/db/migrations"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/database"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/storage"
 	"github.com/kemalthoriq/healthcare_be/internal/setting"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
 	"github.com/kemalthoriq/healthcare_be/internal/treatment"
@@ -44,8 +45,9 @@ func TestIntegration_ExclusionConstraintPreventsDoubleBooking(t *testing.T) {
 	}
 
 	repo := NewRepository(pool)
-	treatments := treatment.NewService(treatment.NewRepository(pool), repo)
-	therapists := therapist.NewService(therapist.NewRepository(pool), treatments, repo)
+	images := storage.NewCloudinary("", "", "")
+	treatments := treatment.NewService(treatment.NewRepository(pool), repo, images)
+	therapists := therapist.NewService(therapist.NewRepository(pool), treatments, repo, images)
 	settings := setting.NewService(setting.NewRepository(pool))
 	svc := NewService(NewAvailability(treatments, therapists, settings, repo, loc), repo, &fakeNotifier{})
 
