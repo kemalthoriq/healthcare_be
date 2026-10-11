@@ -1,21 +1,28 @@
 package booking
 
 import (
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/clientip"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/httpx"
 )
+
+type captchaVerifier interface {
+	Verify(ctx context.Context, token, remoteIP string) error
+}
 
 type Handler struct {
 	availability *Availability
 	service      *Service
+	captcha      captchaVerifier
 	loc          *time.Location
 }
 
-func NewHandler(availability *Availability, service *Service, loc *time.Location) *Handler {
-	return &Handler{availability: availability, service: service, loc: loc}
+func NewHandler(availability *Availability, service *Service, captcha captchaVerifier, loc *time.Location) *Handler {
+	return &Handler{availability: availability, service: service, captcha: captcha, loc: loc}
 }
 
 type createRequest struct {
@@ -27,6 +34,7 @@ type createRequest struct {
 	Email         string    `json:"email"`
 	Note          string    `json:"note"`
 	Consent       bool      `json:"consent"`
+	CaptchaToken  string    `json:"captcha_token"`
 }
 
 type namedRef struct {
@@ -49,6 +57,11 @@ type bookingResponse struct {
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var req createRequest
 	if err := httpx.DecodeJSON(w, r, &req); err != nil {
+		httpx.Error(w, r, err)
+		return
+	}
+
+	if err := h.captcha.Verify(r.Context(), req.CaptchaToken, clientip.FromContext(r.Context())); err != nil {
 		httpx.Error(w, r, err)
 		return
 	}

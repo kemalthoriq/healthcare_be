@@ -17,10 +17,12 @@ import (
 	"github.com/kemalthoriq/healthcare_be/internal/booking"
 	"github.com/kemalthoriq/healthcare_be/internal/invoice"
 	"github.com/kemalthoriq/healthcare_be/internal/notify"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/captcha"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/config"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/database"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/email"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/logger"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/ratelimit"
 	"github.com/kemalthoriq/healthcare_be/internal/promo"
 	"github.com/kemalthoriq/healthcare_be/internal/setting"
 	"github.com/kemalthoriq/healthcare_be/internal/therapist"
@@ -96,19 +98,26 @@ func run() error {
 	bookingService := booking.NewService(availability, bookingRepository, notifier)
 	invoiceService := invoice.NewService(invoice.NewRepository(pool), bookingService, clinicLocation)
 
+	verifier := captcha.New(cfg.TurnstileSecret, log)
+	if !verifier.Enabled() {
+		log.Warn("TURNSTILE_SECRET_KEY not set, captcha verification disabled")
+	}
+
 	router := newRouter(routerDeps{
-		log:            log,
-		db:             pool,
-		frontendOrigin: cfg.FrontendOrigin,
-		auth:           auth.NewHandler(authService, cfg.IsProduction()),
-		treatment:      treatment.NewHandler(treatmentService),
-		therapist:      therapist.NewHandler(therapistService),
-		account:        therapist.NewAccountHandler(accountService),
-		setting:        setting.NewHandler(settingService),
-		booking:        booking.NewHandler(availability, bookingService, clinicLocation),
-		patient:        booking.NewPatientHandler(booking.NewPatientService(bookingRepository, bookingService), clinicLocation),
-		invoice:        invoice.NewHandler(invoiceService, clinicLocation),
-		promo:          promo.NewHandler(promo.NewService(promo.NewRepository(pool), clinicLocation)),
+		log:              log,
+		db:               pool,
+		frontendOrigin:   cfg.FrontendOrigin,
+		trustedProxyHops: cfg.TrustedProxyHops,
+		limits:           newRateLimits(),
+		auth:             auth.NewHandler(authService, cfg.IsProduction(), ratelimit.New(10, 15*time.Minute)),
+		treatment:        treatment.NewHandler(treatmentService),
+		therapist:        therapist.NewHandler(therapistService),
+		account:          therapist.NewAccountHandler(accountService),
+		setting:          setting.NewHandler(settingService),
+		booking:          booking.NewHandler(availability, bookingService, verifier, clinicLocation),
+		patient:          booking.NewPatientHandler(booking.NewPatientService(bookingRepository, bookingService), clinicLocation),
+		invoice:          invoice.NewHandler(invoiceService, clinicLocation),
+		promo:            promo.NewHandler(promo.NewService(promo.NewRepository(pool), clinicLocation)),
 	})
 
 	srv := &http.Server{

@@ -8,19 +8,25 @@ import (
 
 	"github.com/kemalthoriq/healthcare_be/internal/platform/apperr"
 	"github.com/kemalthoriq/healthcare_be/internal/platform/httpx"
+	"github.com/kemalthoriq/healthcare_be/internal/platform/ratelimit"
 )
 
 const sessionCookieName = "session"
 
 type userKey struct{}
 
+type limiter interface {
+	Allow(key string) (bool, time.Duration)
+}
+
 type Handler struct {
 	service      *Service
 	secureCookie bool
+	emailLimit   limiter
 }
 
-func NewHandler(service *Service, secureCookie bool) *Handler {
-	return &Handler{service: service, secureCookie: secureCookie}
+func NewHandler(service *Service, secureCookie bool, emailLimit limiter) *Handler {
+	return &Handler{service: service, secureCookie: secureCookie, emailLimit: emailLimit}
 }
 
 type loginRequest struct {
@@ -55,6 +61,11 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(fields) > 0 {
 		httpx.Error(w, r, apperr.Validation(fields))
+		return
+	}
+
+	if ok, wait := h.emailLimit.Allow(strings.ToLower(strings.TrimSpace(req.Email))); !ok {
+		ratelimit.Reject(w, r, wait)
 		return
 	}
 

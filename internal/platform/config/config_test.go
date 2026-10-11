@@ -26,6 +26,8 @@ func clearEnv(t *testing.T) {
 	t.Setenv("SMTP_USER", "")
 	t.Setenv("SMTP_PASSWORD", "")
 	t.Setenv("SMTP_FROM", "")
+	t.Setenv("TRUSTED_PROXY_HOPS", "")
+	t.Setenv("TURNSTILE_SECRET_KEY", "")
 }
 
 func setRequiredEnv(t *testing.T) {
@@ -67,6 +69,7 @@ func TestLoad_ReadsValuesFromEnv(t *testing.T) {
 	t.Setenv("PORT", "9000")
 	t.Setenv("SHUTDOWN_TIMEOUT", "30s")
 	t.Setenv("DB_MAX_CONNS", "10")
+	t.Setenv("TURNSTILE_SECRET_KEY", "1x0000000000000000000000000000000AA")
 
 	cfg, err := Load()
 	if err != nil {
@@ -205,5 +208,30 @@ func TestLoad_Email(t *testing.T) {
 	t.Setenv("EMAIL_ENABLED", "ya")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "EMAIL_ENABLED") {
 		t.Errorf("invalid bool: err = %v", err)
+	}
+}
+
+func TestLoad_ProxyAndTurnstile(t *testing.T) {
+	setRequiredEnv(t)
+	cfg, err := Load()
+	if err != nil || cfg.TrustedProxyHops != 0 || cfg.TurnstileSecret != "" {
+		t.Fatalf("defaults: hops = %d, secret = %q, err = %v", cfg.TrustedProxyHops, cfg.TurnstileSecret, err)
+	}
+
+	t.Setenv("TRUSTED_PROXY_HOPS", "6")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "TRUSTED_PROXY_HOPS") {
+		t.Errorf("hops out of range: err = %v", err)
+	}
+	t.Setenv("TRUSTED_PROXY_HOPS", "2")
+
+	t.Setenv("APP_ENV", EnvProduction)
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "TURNSTILE_SECRET_KEY") {
+		t.Errorf("production without turnstile secret: err = %v", err)
+	}
+
+	t.Setenv("TURNSTILE_SECRET_KEY", "1x0000000000000000000000000000000AA")
+	cfg, err = Load()
+	if err != nil || cfg.TrustedProxyHops != 2 {
+		t.Errorf("production config: hops = %d, err = %v", cfg.TrustedProxyHops, err)
 	}
 }
